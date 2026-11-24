@@ -2,6 +2,12 @@ import { Composition, Folder } from "remotion";
 import { HelloWorld } from "./HelloWorld";
 import { Logo } from "./HelloWorld/Logo";
 import { Title } from "./HelloWorld/Title";
+import { ScorchieShort, SCORCHIE_FRAMES } from "./videos/scorchie/Scorchie";
+import { GimliShort, GIMLI_FRAMES } from "./videos/gimli/Gimli";
+import { ApolloShort, APOLLO_FRAMES } from "./videos/apollo/Apollo";
+import { MinersShort, MINERS_FRAMES } from "./videos/miners/Miners";
+import { Box } from "./test/Box";
+import { BridgeShort, BRIDGE_FRAMES } from "./videos/bridge/Bridge";
 
 // Each <Composition> is an entry in the sidebar!
 
@@ -51,6 +57,12 @@ export const RemotionRoot: React.FC = () => {
         }}
       />
 
+      <Composition id="BridgeShort" component={BridgeShort} durationInFrames={BRIDGE_FRAMES} fps={30} width={1080} height={1920} />
+      <Composition id="Box" component={Box} durationInFrames={30} fps={30} width={1080} height={1920} />
+      <Composition id="ScorchieShort" component={ScorchieShort} durationInFrames={SCORCHIE_FRAMES} fps={30} width={1080} height={1920} />
+      <Composition id="GimliShort" component={GimliShort} durationInFrames={GIMLI_FRAMES} fps={30} width={1080} height={1920} />
+      <Composition id="ApolloShort" component={ApolloShort} durationInFrames={APOLLO_FRAMES} fps={30} width={1080} height={1920} />
+      <Composition id="MinersShort" component={MinersShort} durationInFrames={MINERS_FRAMES} fps={30} width={1080} height={1920} />
     </>
   );
 };
