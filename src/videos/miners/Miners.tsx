@@ -119,7 +119,7 @@ export const MinersShort: React.FC = () => {
     <AbsoluteFill style={{ background: "#cfe3f2" }}>
       {layersAt(f).map((l, i) => <ShotView key={i ? "over" : "base"} id={l.id} kit={kit} alpha={l.alpha} />)}
       {flash > 0 && <AbsoluteFill style={{ background: "#ffffff", opacity: flash }} />}
-      <Captions words={WORDS} />
+      {(getInputProps() as { noCaptions?: boolean }).noCaptions ? null : <Captions words={WORDS} />}
     </AbsoluteFill>
   );
 };
