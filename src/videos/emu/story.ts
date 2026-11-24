@@ -96,27 +96,141 @@ const P = (f: number, pos: V3, look: V3, fov = 40, roll = 0): Key => ({ f, pos, 
 const X = (f: number, pos: V3, look: V3, fov = 40, roll = 0): Key => ({ f, pos, look, fov, roll, cut: true });
 const at = (o: V3) => (x: number, y: number, z: number): V3 => [o[0] + x, o[1] + y, o[2] + z];
 const Fa = at(FARM), Da = at(DAM), Ro = at(ROAD), Of = at(OFFICE);
-// first-pass framings (the camera owner refines these)
-const CAMS: Record<number, Key[]> = {
-  1: [K(0, Fa(6, 1.4, 10), Fa(0, 1.3, 0), 40), P(119, Fa(5.5, 1.4, 9), Fa(0, 1.3, 0), 38, 0.04)],
-  2: [K(119, Fa(1.8, 1.4, 3.2), Fa(0, 1.6, 0), 34), P(161, Fa(1.7, 1.4, 3.0), Fa(0, 1.6, 0), 32, -0.04)],
-  3: [K(161, Fa(40, 4, 60), Fa(-20, 3, -30), 44), P(320, Fa(36, 4, 54), Fa(-20, 3, -30), 43, 0.03)],
-  4: [K(320, Fa(20, 2.5, 40), Fa(-10, 6, -80), 46), P(411, Fa(18, 2.5, 36), Fa(-10, 4, -60), 45, -0.03)],
-  5: [K(411, Of(1.6, 1.5, 2.2), Of(0, 1.2, 0), 40), P(487, Of(1.5, 1.45, 2.0), Of(0, 1.2, 0), 38, 0.03)],
-  6: [K(487, Fa(0, 1.5, 12), Fa(0, 1.3, 0), 40), P(643, Fa(0, 1.5, 10.5), Fa(0, 1.3, 0), 38, 0.02)],
-  7: [K(643, Fa(0.8, 1.7, 2.2), Fa(0, 1.75, 0), 30), P(683, Fa(0.75, 1.7, 2.0), Fa(0, 1.75, 0), 28, 0.05)],
-  8: [K(683, Da(-40, 6, 40), Da(0, 0, 0), 44), P(790, Da(-36, 5, 36), Da(0, 0, 0), 43, 0.03)],
-  9: [K(790, Da(-22, 1.2, 22), Da(-25, 0.9, 18), 36), P(848, Da(-22.2, 1.2, 21.6), Da(-25, 0.9, 18), 34, -0.04)],
-  10: [K(848, Ro(-6, 2, 10), Ro(0, 1.5, 0), 40), P(937, Ro(-5, 2, 9), Ro(0, 1.5, 0), 38, 0.03)],
-  11: [K(937, Ro(-10, 2.5, 12), Ro(10, 1.2, 0), 44), P(1076, Ro(-8, 2.5, 11), Ro(12, 1.2, 0), 43, -0.03)],
-  12: [K(1076, Fa(0, 90, 120), Fa(0, 0, 0), 44), P(1205, Fa(0, 80, 105), Fa(0, 0, 0), 43, 0.02)],
-  13: [K(1205, Fa(3, 1.3, 4), Fa(0, 1.4, 0), 34), P(1271, Fa(2.8, 1.3, 3.7), Fa(0, 1.4, 0), 32, 0.04)],
-  14: [K(1271, Ro(20, 2, 14), Ro(0, 1.5, 0), 40), P(1351, Ro(18, 2, 12), Ro(0, 1.5, 0), 39, -0.03)],
-  15: [K(1351, Of(1.8, 1.55, 2.4), Of(0, 1.45, 0), 38), P(1549, Of(1.5, 1.5, 2.0), Of(0, 1.45, 0), 34, 0.03)],
-  16: [K(1549, Fa(0, 1.5, 3), Fa(0, 1.2, 0), 36), P(1621, Fa(0, 1.45, 2.6), Fa(0, 1.2, 0), 34, -0.03)],
-  17: [K(1621, Fa(10, 2, 30), Fa(10, 2, 20), 40), P(TOTAL, Fa(10, 2, 27), Fa(10, 2.2, 20), 38, 0.03)],
+// CAMERA (cam owner). Each shot = waypoints [frame, pos, look, fov, roll?] eased with glide() between them, plus a slow
+// constant drift (m/s, on pos + look) so the frame never sits dead between moves; sampled into linear keys every 2
+// frames. Truck shots 10-11 are authored in the truck's frame (x from the truck along ROAD, no bounce) so the camera
+// tracks it. Subjects sit in the upper-middle (look targets aimed below the faces); the bottom ~22% is the caption band.
+type WP = [number, V3, V3, number, number?];
+const lerp3 = (a: V3, b: V3, u: number): V3 => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
+const shot = (id: number, ws: WP[], drift: V3 = [0, 0, 0], frame: (f: number, p: V3) => V3 = (_f, p) => p): Key[] => {
+  const { a, b } = SHOTS[id - 1], out: Key[] = [];
+  const fn = (f: number) => {
+    let i = 0;
+    while (i < ws.length - 2 && f >= ws[i + 1][0]) i++;
+    const A = ws[i], B = ws[Math.min(i + 1, ws.length - 1)];
+    const u = B[0] === A[0] ? 0 : glide((f - A[0]) / (B[0] - A[0]));
+    const d = (f - a) / FPS, dr = (p: V3): V3 => frame(f, [p[0] + drift[0] * d, p[1] + drift[1] * d, p[2] + drift[2] * d]);
+    return P(f, dr(lerp3(A[1], B[1], u)), dr(lerp3(A[2], B[2], u)), A[3] + (B[3] - A[3]) * u, (A[4] ?? 0) + ((B[4] ?? 0) - (A[4] ?? 0)) * u);
+  };
+  for (let f = a; ; f += 2) { const g = Math.min(f, b); out.push(fn(g)); if (g >= b) break; }
+  return out;
 };
-const KICKS: [number, number][] = [];
+/** truck frame (shots 10-11): local x along the road from the truck, y up, z = world z offset from the road */
+const truckFrame = (id: number) => (f: number, p: V3): V3 => [ROAD[0] + chaseAt(id, f / FPS).truckX + p[0], p[1], ROAD[2] + p[2]];
+const Hd = at(HIDE);
+const Sc = at(SCORE);
+const CAMS: Record<number, Key[]> = {
+  // 1 standoff: low two-shot against the sky, then a snap push into the emu's glaring profile on "birds" (84)
+  1: shot(1, [
+    [0, Fa(0.15, 0.85, 8.8), Fa(0.0, 0.85, 0), 40],
+    [50, Fa(0.15, 0.9, 7.8), Fa(0.0, 0.9, 0), 40],
+    [82, Fa(1.05, 1.45, 3.0), Fa(0.7, 1.4, -0.2), 30],
+    [119, Fa(1.0, 1.48, 2.7), Fa(0.7, 1.42, -0.2), 29, 0.02],
+  ]),
+  // 2 "And lost.": the hatted emu close, the hatless soldier cut by the left edge
+  2: shot(2, [
+    [119, Fa(0.6, 1.42, 3.7), Fa(0.35, 1.36, 0), 32, -0.02],
+    [161, Fa(0.55, 1.48, 3.15), Fa(0.38, 1.4, 0), 30, 0.02],
+  ]),
+  // 3 golden farm: wide with the homestead, glide down to the soldiers -> farmers
+  3: shot(3, [
+    [161, Fa(-8.5, 4.2, 6), Fa(-18.5, 0.6, -26), 42],
+    [215, Fa(-12, 2.8, -4), Fa(-18, 0.7, -25), 40],
+    [252, Fa(-16.2, 1.75, -12), Fa(-17.4, 0.75, -24), 38],
+    [320, Fa(-17.2, 1.65, -12.6), Fa(-17.4, 0.8, -24), 37, 0.02],
+  ], [-0.15, 0, 0]),
+  // 4 deadpan wide: the hill fills with the wave behind the tiny farmers, crane down as it arrives
+  4: shot(4, [
+    [320, Fa(12, 4, 42), Fa(0, 8, -215), 24],
+    [411, Fa(21.5, 2.0, 45), Fa(4, -5, -60), 40, -0.02],
+  ]),
+  // 5 office: phone ringing in the foreground, the major behind the desk; push in
+  5: shot(5, [
+    [411, Of(-0.95, 1.45, 3.0), Of(0.15, 1.02, -0.1), 38],
+    [452, Of(-0.65, 1.42, 2.5), Of(0.15, 1.05, -0.15), 36],
+    [487, Of(-0.5, 1.4, 2.25), Of(0.1, 1.08, -0.25), 34, 0.02],
+  ]),
+  // 6 the line-up: pull back as each item lands (major, soldiers, guns, crates)
+  6: shot(6, [
+    [487, Fa(0.15, 1.45, 5.4), Fa(0, 0.98, 0.3), 36],
+    [530, Fa(0.1, 1.45, 5.0), Fa(0, 1.0, 0.3), 36],
+    [556, Fa(0.0, 1.55, 8.2), Fa(0, 0.9, 0.3), 38],
+    [592, Fa(-0.1, 1.9, 9.8), Fa(0, 0.75, 0.8), 38],
+    [626, Fa(0.7, 2.0, 11.6), Fa(0.6, 0.9, 0.6), 38],
+    [643, Fa(0.7, 2.0, 11.2), Fa(0.6, 0.9, 0.6), 38, 0.015],
+  ]),
+  // 7 "Easy, right?": the major's smug close-up
+  7: shot(7, [
+    [643, Fa(0.4, 1.45, 2.6), Fa(0.05, 1.23, 0), 34, 0.02],
+    [683, Fa(0.3, 1.45, 2.25), Fa(0.04, 1.25, 0), 33, -0.02],
+  ]),
+  // 8 the dam: high deadpan wide of the thousand, descend to behind the ambush team
+  8: shot(8, [
+    [683, Da(-62, 30, 64), Da(1, 0, -19), 42],
+    [742, Da(-50, 15, 52), Da(-3, 0, -14), 42],
+    [790, Da(-30.0, 2.3, 22.1), Da(-21.6, 0.7, 14.9), 42],
+  ]),
+  // 9 the jam: side close-up on the Lewis gun (jams on 802), then over the shoulder as the emus scatter
+  9: shot(9, [
+    [790, Hd(1.2, 1.25, 2.75), Hd(-0.35, 0.95, 0.95), 36],
+    [812, Hd(1.1, 1.28, 2.6), Hd(-0.35, 0.95, 0.95), 35],
+    [848, Hd(2.3, 1.75, 4.4), Hd(-0.7, 1.12, -0.4), 40, 0.02],
+  ]),
+  // 10 the gun clunks onto the truck, then a sweeping track forward to look back at truck + pack
+  10: shot(10, [
+    [848, [-2.4, 2.7, 3.0], [-0.9, 1.85, 0], 38],
+    [872, [-2.2, 2.65, 2.85], [-0.9, 1.85, 0], 36],
+    [937, [17, 2.2, 7.5], [6, 1.1, 0.3], 44],
+  ], [0, 0, 0], truckFrame(10)),
+  // 11 riding with the truck: the pack pulls away, crane up as they vanish down the road
+  11: shot(11, [
+    [937, [-3.2, 2.3, 5.4], [5, 1.25, -0.8], 40],
+    [998, [-8.5, 3.0, 1.4], [15, 0.9, -0.3], 40],
+    [1046, [-9, 4.5, 0.9], [40, 0.6, 0], 38],
+    [1076, [-9.5, 4.7, 0.8], [45, 0.6, 0], 37],
+  ], [0, 0, 0], truckFrame(11)),
+  // 12 aerial deadpan over the groups, descend to one group as its lookout pops up
+  12: shot(12, [
+    [1076, Fa(5, 50, 86), Fa(-4, 0, -6), 44],
+    [1140, Fa(1, 30, 62), Fa(-6, 0, 6), 42],
+    [1205, Fa(-6.5, 8.5, 38), Fa(-11, 0.5, 16.5), 38],
+  ]),
+  // 13 guerrilla: the soldier with binoculars misses the camo emu; push to the emu's eyes on "guerrilla"
+  13: shot(13, [
+    [1205, Fa(-0.1, 1.4, 4.5), Fa(0.0, 1.0, 0), 36],
+    [1222, Fa(-0.05, 1.4, 4.2), Fa(0.02, 1.02, 0), 36],
+    [1246, Fa(0.42, 1.38, 2.1), Fa(0.3, 1.25, -0.2), 30],
+    [1271, Fa(0.4, 1.38, 1.95), Fa(0.3, 1.26, -0.2), 29, 0.02],
+  ]),
+  // 14 golden: the army trudges home, emus wave behind; slow pull back + rise
+  14: shot(14, [
+    [1271, Ro(0.8, 1.6, 6.8), Ro(0.5, 0.95, -3), 40],
+    [1351, Ro(2.2, 2.0, 10.2), Ro(0.8, 0.95, -4), 41, -0.02],
+  ]),
+  // 15 the major's quote: push in, pull back for the thought bubble (beat 1487), push to his face + bubble
+  15: shot(15, [
+    [1351, Of(0.9, 1.5, 2.9), Of(-0.05, 1.12, -0.6), 38],
+    [1420, Of(0.6, 1.45, 2.4), Of(-0.08, 1.18, -0.7), 34],
+    [1470, Of(0.3, 1.4, 1.95), Of(-0.1, 1.22, -0.8), 32],
+    [1500, Of(0.1, 1.55, 3.1), Of(0.15, 1.5, -0.8), 37],
+    [1549, Of(0.12, 1.55, 2.75), Of(0.15, 1.55, -0.8), 35, 0.02],
+  ]),
+  // 16 the newspaper: settle so the page fills the frame above the caption band
+  16: shot(16, [
+    [1549, Fa(0, 1.25, 2.9), Fa(0, 1.13, 0.45), 36],
+    [1600, Fa(0, 1.2, 2.3), Fa(0, 1.12, 0.45), 36],
+    [1621, Fa(0.02, 1.2, 2.25), Fa(0, 1.12, 0.45), 35.5],
+  ]),
+  // 17 final score: wide, push to the board for "one"/"zero", then the hatted emu's victory close-up
+  17: shot(17, [
+    [1621, Sc(0.6, 2.4, 17), Sc(0, 1.5, -1), 42],
+    [1660, Sc(0.3, 2.2, 11), Sc(0, 1.55, 0), 38],
+    [1702, Sc(0.1, 2.2, 10), Sc(0, 1.55, 0), 38],
+    [1738, Sc(3.5, 1.85, 8.0), Sc(2.2, 1.25, 1.7), 38],
+    [1800, Sc(3.3, 1.8, 7.3), Sc(2.2, 1.25, 1.7), 37, 0.02],
+  ]),
+};
+const KICKS: [number, number][] = [[84, 0.04], [126, 0.03], [382, 0.025], [442, 0.025], [581, 0.025], [619, 0.03], [653, 0.035], [802, 0.04], [860, 0.04], [961, 0.025], [1032, 0.025], [1487, 0.02], [1670, 0.03], [1702, 0.035]];
 export const camAt = (id: number, f: number): Cam => {
   const ks = CAMS[id];
   let k0 = ks[0], k1 = ks[ks.length - 1];
@@ -138,7 +252,11 @@ export const camAt = (id: number, f: number): Cam => {
   }
   return c;
 };
-const DOFK: [number, number, V3?][] = [[0, 0]];
+// mild lens blur only (backgrounds stay readable): [frame, cInf, focus?] (focus default = the look target)
+const DOFK: [number, number, V3?][] = [
+  [0, 2], [60, 5], [119, 5], [161, 1], [240, 3], [320, 0], [411, 4], [487, 3], [643, 5], [683, 0], [790, 5], [812, 2],
+  [848, 3], [880, 1], [937, 1], [1076, 0], [1205, 3], [1230, 5], [1271, 2], [1351, 4], [1549, 2], [1621, 1], [1660, 2], [1720, 4],
+];
 export const dofAt = (f: number): { cInf: number; focus?: (f: number) => V3 } => {
   let e: [number, number, V3?] = DOFK[0];
   for (const d of DOFK) if (f >= d[0]) e = d;
