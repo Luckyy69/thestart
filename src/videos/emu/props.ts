@@ -41,8 +41,8 @@ export const HIDE_MUZZLE: V3 = (() => { const L = 0.98 * GUN_SCALE, y = HIDE_GUN
 export const PHONE: V3 = [OFFICE[0] + 0.42, 0.76, OFFICE[2] + 0.12];
 /** phone rings (shot 5) in these windows (s) */
 export const PHONE_RINGS: [number, number][] = [[13.75, 14.25], [14.45, 14.95], [15.15, 15.55]];
-/** scoreboard: board face plane z = SCORE.z + 0.04 facing +z, board x SCORE.x +-1.6, y 0.95..3.05, posts at x +-1.45 */
-export const SCOREBOARD = { center: [SCORE[0], 2.0, SCORE[2]] as V3, w: 3.2, h: 2.1, footprint: { x0: SCORE[0] - 1.65, x1: SCORE[0] + 1.65, z0: SCORE[2] - 0.2, z1: SCORE[2] + 0.2 } };
+/** scoreboard: board face plane z = SCORE.z + 0.04 facing +z, board x SCORE.x +-1.6, y 1.55..3.65 (raised: the army stands beneath it), posts at x +-1.45 */
+export const SCOREBOARD = { center: [SCORE[0], 2.6, SCORE[2]] as V3, w: 3.2, h: 2.1, footprint: { x0: SCORE[0] - 1.65, x1: SCORE[0] + 1.65, z0: SCORE[2] - 0.2, z1: SCORE[2] + 0.2 } };
 
 // truck: local frame +x forward, +y up, +z = truck's right (driver side, RHD). Ground under the wheels y = 0.
 export const TRUCK = {
@@ -59,7 +59,7 @@ export type TruckPose = { show: boolean; x: number; y: number; z: number; yaw: n
 export const truckPose = (id: number, t: number): TruckPose => {
   let x = 0, yaw = 0, s = 0, speed = 0, show = true;
   if (id === 10 || id === 11) { const c = chaseAt(id, t), c2 = chaseAt(id, t + 0.02); x = ROAD[0] + c.truckX; s = c.truckX; speed = (c2.truckX - c.truckX) / 0.02; }
-  else if (id === 14) { const d = 2.2 * (t - shotStart(14)); x = ROAD[0] - d; yaw = Math.PI; s = d; speed = 2.2; }
+  else if (id === 14) show = false; // QA3: shot 14 = the army trudges home on foot (the truck cut through the walkers)
   else show = false;
   const a = Math.min(1, speed / 8) * (id === 11 ? 1.25 : 1);
   const hop = a * 0.07 * Math.pow(Math.max(0, Math.sin(s * 0.83 + 0.4)), 8);               // every rut throws it up a bit
@@ -841,7 +841,7 @@ export class Props {
     if (id === 17) {
       const cues = [W.one, W.zero];
       this.plates.forEach((p, i) => {
-        const t0 = cues[i] - 0.34, u = clamp01((t - t0) / 0.4), a = t - (t0 + 0.4);
+        const t0 = cues[i] - 0.14, u = clamp01((t - t0) / 0.3), a = t - (t0 + 0.3);
         const e = u >= 1 ? 1 : 1 + 2.2 * (u - 1) ** 3 + 1.2 * (u - 1) ** 2;                // ease-out-back
         p.spin.visible = u > 0;
         p.spin.rotation.y = -2.5 * Math.PI * (1 - e);

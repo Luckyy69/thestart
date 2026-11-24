@@ -185,7 +185,7 @@ const phoneCall = (t: number, cam: CamInfo, out: Stage) => {
     const v = Math.floor(t * 14) % 2;
     fxCard(out, `ring${v}`, 1024, 800, (p) => fxRing(p, v), PHONE[0], PHONE[1] + 0.38 + 0.01 * v, PHONE[2], 0.56 * k, 0.44 * k, { rot: v ? 0.05 : -0.05 });
   }
-  pop(out, t, 40, x + 0.05, crownY(GS) + 0.5, z, t0 + 0.12, true, 1, ringEnd - 0.1);
+  pop(out, t, 40, x + 0.05, crownY(GS) + 0.3, z, t0 + 0.12, true, 1, ringEnd - 0.1);
   if (on(t, W.army)) sparkles(out, t, W.army, x, crownY(GS) + 0.25, z, cam, 3, 0.14, 0.32);
 };
 /** shot time ranges (s) */
@@ -197,7 +197,7 @@ const SHOT_T: Record<number, [number, number]> = {
 
 // ---------------- shot 6: the line-up ----------------
 const lineup = (t: number, cam: CamInfo, out: Stage) => {
-  const L6: [number, number, number, number][] = [[0, 0.3, W.major, 0], [-1.05, 0, W.soldiers2 - 0.06, 1], [1.05, 0, W.soldiers2 + 0.06, 2]];
+  const L6: [number, number, number, number][] = [[0, 0.3, W.army, 0], [-1.05, 0, W.soldiers2 - 0.06, 1], [1.05, 0, W.soldiers2 + 0.06, 2]];
   for (const [px, pz, word, k] of L6) {
     const s = spring(t, word, 0.26);
     const x = FARM[0] + px, z = FARM[2] + pz;
@@ -285,12 +285,15 @@ const truck = (id: number, t: number, cam: CamInfo, out: Stage) => {
     if (cant) { sweat(out, t, 40, MAJ[0], sy - 0.2, MAJ[2], cam, W.cant); sweat(out, t, 42, DRV[0], sy - 0.2, DRV[2], cam, W.cant + 0.3); }
     // speed lines trailing the leading emus (flock: the pack runs at x = truckX + lead, |z| < 1.5)
     const ex = tx + c.lead, k = smooth((t - (W.run - LEAD)) / 0.3);
-    if (k > 0.02) for (let j2 = 0; j2 < 3; j2++) {
+    // QA: off: the chase camera looks along the run (+x), so sideways streaks read as grey bars across the pack
+    if (k > 0.02 && SPEED_LINES) for (let j2 = 0; j2 < 3; j2++) {
       const v = Math.floor(t * 10 + j2) % 3;
       fxCard(out, `speed${v}`, 768, 256, (p) => fxSpeed(p, v), ex - 2.2 - 0.4 * j2, 0.9 + 0.35 * j2, tz + 1.6 - 0.9 * j2, 2.4 * k, 0.8 * k);
     }
   }
 };
+
+const SPEED_LINES = false as boolean;
 
 // ---------------- shot 13: guerrilla warfare ----------------
 const guerrilla = (t: number, cam: CamInfo, out: Stage) => {
@@ -304,9 +307,9 @@ const guerrilla = (t: number, cam: CamInfo, out: Stage) => {
 // ---------------- shot 14: the army goes home ----------------
 const goHome = (t: number, cam: CamInfo, out: Stage) => {
   const t0 = SHOT_T[14][0], d = 0.75 * (t - t0), D = [0.82, 0.57], S = [-0.57, 0.82];
-  const team: [number, number, number][] = [[0, 0, 40], [0.85, -0.4, 41], [-0.85, -0.4, 42]];
+  const team: [number, number, number][] = [[0, 0, 40], [-0.95, -0.45, 41], [0.95, -0.45, 42]]; // world x / z offsets (side by side on screen)
   for (const [side, back, i] of team) {
-    const x = ROAD[0] + D[0] * (d + back) + S[0] * side, z = ROAD[2] + D[1] * (d + back) + S[1] * side;
+    const x = ROAD[0] + D[0] * d + side, z = ROAD[2] + D[1] * d + back; void S;
     const phase = (t * 1.5 + i * 0.37) % 1;
     if (i === 40) dude(out, cam, t, i, MAJOR, "maj", majorAcc(-1, { flag: q((t * 0.8) % 1, 8), plaster: true, askew: 10, feather: true }), x, 0, z, "stroll",
       { expr: on(t, W.home) ? "pained" : "nervous", wave: 0, phase, tilt: -3, swaps: [W.home] });
@@ -327,7 +330,6 @@ const quote = (t: number, cam: CamInfo, out: Stage) => {
   dude(out, cam, t, 40, MAJOR, "maj", majorAcc(mood, { askew: 10, feather: true, plaster: true, thumb: wor }), x, 0, z, "stand",
     { expr, wave: wor ? 0.3 : said && !bul ? 0.05 : undefined, tilt: beat ? -4 : 0, look: beat && !wor ? -1 : 0, swaps: [W.majorSaid, W.bullets2, W.birds2, W.beat, W.world] }, 1, false);
   const hy = crownY(GS);
-  pop(out, t, 40, x + 0.05, hy + 0.48, z, W.bullets2, true, 1, W.beat - 0.2);
   if (bir && !beat) sweat(out, t, 40, x, 1.46, z, cam, W.birds2);
   // the dream: a thought bubble rises up beside his head (screen right)
   const k = spring(t, W.beat, 0.35);
@@ -341,15 +343,15 @@ const quote = (t: number, cam: CamInfo, out: Stage) => {
 // ---------------- shot 16: the newspaper ----------------
 export const NEWS_AT: V3 = [FARM[0], 1.22, FARM[2] + 0.45];
 const paper = (t: number, out: Stage) => {
-  const t0 = SHOT_T[16][0] + 0.03, u = clamp01((t - t0) / 0.75), e = smooth(u);
-  const sc = e * (1 + 0.06 * Math.sin(u * Math.PI)), rot = (1 - e) * Math.PI * 4 + 0.03 * Math.sin(t * 1.3);
+  const t0 = SHOT_T[16][0] - 0.02, u = clamp01((t - t0) / 0.55), e = smooth(u);
+  const sc = (0.3 + 0.7 * e) * (1 + 0.06 * Math.sin(u * Math.PI)), rot = (1 - e) * Math.PI * 4 + 0.03 * Math.sin(t * 1.3);
   if (sc < 0.01) return;
   fxCard(out, "news", NEWS_CW, NEWS_CH, fxNews, NEWS_AT[0], NEWS_AT[1] + 0.005 * Math.sin(t * 1.7), NEWS_AT[2], 0.6 * sc, 0.8 * sc, { rot });
 };
 
 // ---------------- shot 17: final score ----------------
 const finale = (t: number, cam: CamInfo, out: Stage) => {
-  const team: [number, number, number][] = [[-1.2, 3.0, 40], [-1.75, 2.3, 41], [-0.65, 2.2, 42]];
+  const team: [number, number, number][] = [[-0.5, 3.0, 40], [-1.15, 2.3, 41], [0.2, 2.3, 42]];
   const one = on(t, W.one), zero = on(t, W.zero);
   for (const [px, pz, i] of team) {
     const x = SCORE[0] + px, z = SCORE[2] + pz, board = lookTo(cam, x, z, SCORE[0], SCORE[2]);
@@ -357,14 +359,13 @@ const finale = (t: number, cam: CamInfo, out: Stage) => {
       const flinch = one ? 0.08 * Math.max(0, Math.sin((t - W.one + LEAD) * 12)) * Math.exp(-(t - W.one) * 5) : 0;
       dude(out, cam, t, i, MAJOR, "maj", majorAcc(zero ? -1 : -0.5, { flag: q((t * 0.8) % 1, 8), plaster: true, askew: 10, feather: true }), x, flinch, z, "stand",
         { expr: zero ? "dazed" : one ? "shock" : "nervous", wave: zero ? 0 : 0.15, look: zero ? 0 : board, tilt: zero ? -5 : 0, swaps: [W.score, W.one, W.zero] });
-      pop(out, t, i, x + 0.05, crownY(GS) + 0.52, z, W.one, true, 1, W.zero - 0.1);
       if (zero) sweat(out, t, i, x, 1.48, z, cam, W.zero);
     } else {
       dude(out, cam, t, i, SOLDIER(i - 40), `s${i - 40}`, SOLDIER_ACC, x, 0, z, "stand",
         { expr: "neutral", look: zero ? 0 : on(t, W.score) ? board : 0, swaps: [W.score, W.zero] });
     }
   }
-  pop(out, t, 41, SCORE[0] - 1.75 + 0.05, crownY() + 0.42, SCORE[2] + 2.3, W.zero + 0.25);
+  pop(out, t, 41, SCORE[0] - 1.15 + 0.05, crownY() + 0.42, SCORE[2] + 2.3, W.zero + 0.25);
 };
 
 export const castAt = (id: number, t: number, cam: CamInfo, light: "day" | "golden"): Stage => {

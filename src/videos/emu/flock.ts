@@ -16,6 +16,7 @@ import { NOINK } from "../bridge/ink";
 import { untone } from "../bridge/shade";
 import { W, FARM, DAM, HIDE, ROAD, SCORE, HOMESTEAD, SHOTS, LEAD, chaseAt, clamp01, smooth, V3 } from "./story";
 import { LOOKS } from "./looks";
+import { groundY } from "./outback";
 
 // ======================================================================================================== art
 type P2 = [number, number];
@@ -277,9 +278,9 @@ const wingSide = (p: Pen, base: P2, ang: number, dir: number) => {
   p.poly(w, C.bodyD, 11);
   p.stroke([rot2([base[0] - 20 * dir, base[1]], ang * dir, base), rot2([base[0] - 80 * dir, base[1] + 4], ang * dir, base)], 5, C.bodyDD);
 };
-const wingFront = (p: Pen, base: P2, ang: number, s: number) => {
+const wingFront = (p: Pen, base: P2, ang: number, s: number, k = 1) => {
   const pts: P2[] = [[0, -22], [30, -26], [74, -14], [104, 6], [86, 10], [98, 26], [62, 22], [66, 38], [28, 26], [0, 22]];
-  const w = pts.map(([x, y]) => rot2([base[0] + x * s, base[1] + y], ang * s, base));
+  const w = pts.map(([x, y]) => rot2([base[0] + x * s * k, base[1] + y * k], ang * s, base));
   p.poly(w, C.bodyD, 11);
 };
 
@@ -362,7 +363,7 @@ const drawFront = (p: Pen, o: Pose) => {
   else if (o.g === "run") { lift = [Math.max(0, Math.sin(2 * Math.PI * ph)) * 110, Math.max(0, -Math.sin(2 * Math.PI * ph)) * 110]; sway = 14 * Math.sin(2 * Math.PI * ph); const b = -20 * Math.abs(Math.sin(2 * Math.PI * ph)); bc = [500 + sway, 560 + b]; h = [500 + sway * 1.4, 285 + b]; tilt = sway * 0.008; wl = wr = 0.6 + 0.3 * Math.sin(4 * Math.PI * ph); }
   else if (o.g === "peck") { const s = fr(ph), d = s < 0.3 ? smooth(s / 0.3) : s < 0.5 ? 1 : 1 - smooth((s - 0.5) / 0.5); bc = [500, 560]; h = [500, lerp(560, 790, d)]; }
   else if (o.g === "celeb") { const b = 26 * Math.abs(Math.sin(2 * Math.PI * ph)); bc = [500, 545 + b]; h = [500 + 18 * Math.sin(2 * Math.PI * ph), 205 + b * 0.6]; tilt = 0.12 * Math.sin(2 * Math.PI * ph); wl = wr = -1.0 + 0.55 * Math.sin(4 * Math.PI * ph); }
-  else if (o.g === "wave") { h = [500, 196]; tilt = 0.08 * Math.sin(2 * Math.PI * ph); wr = -1.75 + 0.45 * Math.sin(2 * Math.PI * ph * 2); }
+  else if (o.g === "wave") { h = [500, 196]; tilt = 0.08 * Math.sin(2 * Math.PI * ph); wr = -1.1 + 0.42 * Math.sin(2 * Math.PI * ph * 2); }
   else if (o.g === "look") { h = [500, 120]; }
   const hipY = bc[1] + 110;
   const feetX = [442, 558];
@@ -393,7 +394,7 @@ const drawFront = (p: Pen, o: Pose) => {
     p.stroke(zig, 12);
   }
   wingFront(p, [bc[0] - 138, bc[1] - 30], wl, -1);
-  wingFront(p, [bc[0] + 138, bc[1] - 30], wr, 1);
+  wingFront(p, [bc[0] + 138, bc[1] - 30], wr, 1, o.g === "wave" ? 1.8 : 1); // QA3: a big readable goodbye wave (shot 14)
   if (o.g === "peck") neck();
   if (o.hd === "l" || o.hd === "r") headSide(p, h, 0.05, o.hd === "r" ? 1 : -1, o.ex, o);
   else headFront(p, h, tilt, o.ex, o);
@@ -538,6 +539,7 @@ const hsh = (i: number, k = 0) => rnd(i * 1.37 + 0.5, k + 11);
 
 // layouts (built once)
 type WaveB = { tx: number; tz: number; u: number; Ta: number; post: number; s: number; sd: number };
+const WAVE_V = 140, WAVE_B = 0.6; // shot 4 pour speed (m/s, cartoon flood) + braking time (s)
 const D4: [number, number] = (() => { const l = Math.hypot(0.22, 1); return [0.22 / l, 1 / l]; })();
 const N4: [number, number] = [D4[1], -D4[0]];
 const buildWave = (): WaveB[] => {
@@ -546,14 +548,20 @@ const buildWave = (): WaveB[] => {
   const umin = -150, umax = 110;
   for (let li = 0; li < 140; li++) {
     const w = -140 + li * 2.0, lj = hsh(li, 1);
-    for (let ui = 0; ui < 120; ui++) {
+    for (let ui = 0; ui < 136; ui++) {
       const i = li * 1000 + ui;
-      const u = umin + ui * 2.3 + (hsh(i, 2) - 0.5) * 0.6 + (li % 2) * 1.15, ww = w + (hsh(i, 3) - 0.5) * 0.45;
+      const u = umin + ui * 2.3 + (hsh(i, 2) - 0.5) * 0.6 + (li % 2) * 1.15, ww = w + (hsh(i, 3) - 0.5) * 1.7; // QA: wider lateral jitter (no marching columns)
       const tx = O[0] + u * D4[0] + ww * N4[0], tz = O[1] + u * D4[1] + ww * N4[1];
-      if (tx < -78 || tx > 58 || tz < -235 || tz > -14) continue;
+      if (tx < -48 || tx > 62 || tz < -235 || tz > 27) continue;
       if (Math.hypot(tx - hx, tz - hz) < 17) continue;
       if (Math.abs(ww - wH) < 15 && u > uH - 15) continue; // would run through the homestead yard
-      const Ta = 11.95 + 1.35 * clamp01((umax - u) / (umax - umin)) + 0.18 * lj;
+      if (Math.hypot(tx - 18, tz - 31) < 7.5) continue; // a clearing round the three farmers (cast F4)
+      void umax;
+      // QA: the wave pours over the crest IN shot: each bird crosses the crest at Tc (front first, frame ~323), runs at
+      // WAVE_V and brakes onto its target; lanes keep their order (followers cross later, stop sooner)
+      const L = (tz - (-215 + 25 * Math.sin(tx * 0.01 + 0.5))) / D4[1];
+      const Tc = 10.78 + 0.0076 * Math.max(0, 240 - L) + 0.25 * lj + 0.005 * hsh(i, 7);
+      const Ta = Tc + Math.max(0, L) / WAVE_V + WAVE_B / 2;
       out.push({ tx, tz, u, Ta, post: hsh(i, 4), s: 0.92 + 0.16 * hsh(i, 5), sd: hsh(i, 6) });
     }
   }
@@ -633,7 +641,7 @@ const packPh = (id: number, t: number) => {
 /** dam scatter distance from the start of the scatter (accelerate to 18 m/s) */
 const scatterD = (ts: number) => (ts <= 0 ? 0 : ts < 0.6 ? 15 * ts * ts : 5.4 + 18 * (ts - 0.6));
 /** wave approach distance before arrival s seconds ahead (v 24 m/s, braking over the last .6 s) */
-const waveD = (s: number) => (s <= 0 ? 0 : s < 0.6 ? (24 * s * s) / 1.2 : 24 * (s - 0.3));
+const waveD = (s: number) => (s <= 0 ? 0 : s < WAVE_B ? (WAVE_V * s * s) / (2 * WAVE_B) : WAVE_V * (s - WAVE_B / 2));
 
 const DEBUG = false;
 /** shot 13: draw our own leafy bush card in front of the camo emu (set false if outback's HIDE bush covers it) */
@@ -651,7 +659,7 @@ export class Flock {
   private geo: THREE.PlaneGeometry;
   private wave = buildWave(); private dam = buildDam(); private groups = buildGroups(); private pack = buildPack(); private fin = buildFinale();
   private birds: Bird[] = []; private puffs: Puff[] = [];
-  private m4 = new THREE.Matrix4(); private q = new THREE.Quaternion(); private e = new THREE.Euler(0, 0, 0, "YXZ"); private v3 = new THREE.Vector3(); private s3 = new THREE.Vector3();
+  private m4 = new THREE.Matrix4(); private q = new THREE.Quaternion(); private e = new THREE.Euler(0, 0, 0, "YXZ"); private v3 = new THREE.Vector3(); private s3 = new THREE.Vector3(); private qn = new THREE.Quaternion(); private nv = new THREE.Vector3();
   private right = new THREE.Vector3(); private fwd = new THREE.Vector3();
 
   constructor() {
@@ -737,8 +745,8 @@ export class Flock {
           const b = this.wave[n], sr = b.Ta - t, D = waveD(sr);
           const x = b.tx - D4[0] * D, z = b.tz - D4[1] * D;
           if (z < -900) continue;
-          const sp = sr <= 0 ? 0 : sr < 0.6 ? 40 * sr : 24, i = 10000 + n;
-          if (sp > 5) { B({ i, x, z, fx: D4[0], fz: D4[1], s: b.s, pose: { g: "run", ph: b.sd - D / 5.5, hd: "c", ex: EX.calm } }); if (sp > 10 && n % 3 === 0) for (let k = 0; k < 3; k++) { const te = t - k * 0.25 - fr(b.sd * 7 + t * 4) * 0.25, Dk = waveD(b.Ta - te); if (waveD(b.Ta - te) > 3) this.puff(b.tx - D4[0] * Dk, b.tz - D4[1] * Dk, t - te, 1.3); } continue; }
+          const sp = sr <= 0 ? 0 : sr < WAVE_B ? (WAVE_V * sr) / WAVE_B : WAVE_V, i = 10000 + n;
+          if (sp > 5) { B({ i, x, z, fx: D4[0], fz: D4[1], s: b.s, pose: { g: "run", ph: b.sd + t * 3.4, hd: "c", ex: EX.calm } }); if (sp > 10 && n % 9 === 0) for (let k = 0; k < 3; k++) { const te = t - k * 0.25 - fr(b.sd * 7 + t * 4) * 0.25, Dk = waveD(b.Ta - te); if (waveD(b.Ta - te) > 3) this.puff(b.tx - D4[0] * Dk, b.tz - D4[1] * Dk, t - te, 1.3); } continue; }
           if (sp > 0.3) { B({ i, x, z, fx: D4[0], fz: D4[1], s: b.s, pose: { g: "walk", ph: b.sd - D / 1.8, hd: "c", ex: EX.calm } }); continue; }
           const a = -sr, side = b.post < 0.35 ? 1 : b.post < 0.7 ? -1 : 0;
           const fx = side ? N4[0] * side : D4[0], fz = side ? N4[1] * side : D4[1];
@@ -797,7 +805,7 @@ export class Flock {
         // guerrilla: a camouflaged emu (leaves + twigs on its head) peeks over a bush at FARM origin
         const rise = smooth((t - (W.guerrilla - LEAD - 0.15)) / 0.3) - smooth((t - (W.warfare - LEAD + 0.25)) / 0.25);
         const shift = t < 40.55 ? -1 : t < 40.85 ? 1 : t < W.warfare - LEAD + 0.2 ? 0 : (t < 41.9 ? -1 : 1);
-        const ex: Ex = blinkEx({ ...EX.sneaky, px: shift, lid: rise > 0.5 ? 0.15 : 0.38, brow: rise > 0.5 ? 0.6 : -0.5, browR: rise > 0.5 ? 0.6 : -0.5, up: rise * 10, pup: rise > 0.5 ? 0.6 : 1 }, 13);
+        const ex: Ex = ({ ...EX.sneaky, px: shift, lid: rise > 0.5 ? 0.15 : 0.38, brow: rise > 0.5 ? 0.6 : -0.5, browR: rise > 0.5 ? 0.6 : -0.5, up: rise * 10, pup: rise > 0.5 ? 0.6 : 1 }); // QA: no blink: a closed lid read as blank eyes in the full-frame push-in
         const ex0 = FARM[0] + 0.3, ez0 = FARM[2] - 0.2, [cx, cz] = toCam(ex0, ez0);
         B({ i: 13, x: ex0, z: ez0, fx: cx, fz: cz, s: 1, vf: "F", pose: { g: "stand", ph: 0, hd: "c", ex, leaves: 1, neck: -150 + 120 * rise, seed: 2 } });
         if (OWN_BUSH) B({ i: 14, x: ex0 + cx * 0.45, z: ez0 + cz * 0.45, fx: cx, fz: cz, s: 1.05, pose: { g: "stand", ph: 0, hd: "c", ex: EX.calm }, key: "bush", draw: drawBush });
@@ -805,11 +813,11 @@ export class Flock {
       }
       case 14: {
         // the army goes home: a row of emus at the road edge waving goodbye (the hat emu in the middle)
-        const xs = [-6.4, -4.0, -1.6, 0.9, 3.4, 5.9, 8.3], big = t > W.home - LEAD ? 1 : 0;
+        const xs = [-6.0, -3.9, -2.0, 3.3, 5.2, 6.9, 8.9], big = t > W.home - LEAD ? 1 : 0;
         xs.forEach((x0, k) => {
-          const i = 50 + k, x = ROAD[0] + x0, z = ROAD[2] - 5.6 + (k % 2) * 0.5;
-          const ex = k === 3 ? EX.smug : k === 5 ? EX.cheeky : k % 2 ? EX.happy : EX.proud;
-          B({ i, x, z, fx: 0, fz: 1, s: 0.96 + 0.08 * hsh(k, 5), vf: "F", pose: { g: "wave", ph: t * (1.6 + 0.6 * big) + hsh(k, 6), hd: "c", ex: blinkEx(ex, i), hat: k === 3 ? 1 : 0 } });
+          const i = 50 + k, x = ROAD[0] + x0, z = ROAD[2] - 3.4 - (k % 2) * 0.5;
+          const ex = k === 2 ? EX.smug : k === 5 ? EX.cheeky : k % 2 ? EX.happy : EX.proud;
+          B({ i, x, z, fx: 0, fz: 1, s: 0.96 + 0.08 * hsh(k, 5), vf: "F", pose: { g: "wave", ph: t * (1.6 + 0.6 * big) + hsh(k, 6), hd: "c", ex: blinkEx(ex, i), hat: k === 2 ? 1 : 0 } });
         });
         for (let k = 0; k < 9; k++) { const i = 70 + k; B({ i, x: ROAD[0] - 7 + k * 2.1, z: ROAD[2] - 8.6 - (k % 2) * 0.9, fx: 0, fz: 1, s: 0.95, vf: "F", pose: { g: k % 3 ? "wave" : "stand", ph: t * 1.8 + hsh(k, 7), hd: "c", ex: EX.happy } }); }
         break;
@@ -865,13 +873,13 @@ export class Flock {
       if (v === "S" && (pose.hd === "l" || pose.hd === "r" || (pose.g === "peck" && pose.hd === "c"))) pose.hd = "f";
       if (v === "F" && (pose.hd === "f" || pose.hd === "b")) pose.hd = "c";
       const yaw = Math.atan2(tcx, tcz), elev = Math.atan2(cp.y - 1.0 * b.s, tl), pitch = elev > 0.3 ? (elev - 0.3) * 0.75 : 0;
-      const s = b.s;
+      const s = b.s, gy = id === 4 ? groundY(b.x, b.z) : 0; // shot 4: the wave runs over the hill
       if (hero.has(k)) {
         const a = this.hero(hi++), d = dist[k] / s;
         const [w, k2] = d < 4 ? [2048, 2.048] : d < 8 ? [1280, 1.28] : d < 15 ? [720, 0.72] : [420, 0.42];
         const draw = b.draw ?? ((p: Pen) => drawEmu(p, pose));
         a.r = this.pool.req(b.key ?? poseKey(pose), w, w, k2, draw);
-        a.mesh.visible = true; a.mesh.position.set(b.x, 0, b.z);
+        a.mesh.visible = true; a.mesh.position.set(b.x, gy, b.z);
         a.mesh.rotation.set(-pitch, yaw, 0); a.mesh.scale.set(mirror ? -s : s, s, s);
         a.mesh.castShadow = shadow;
         used.push(a);
@@ -879,15 +887,16 @@ export class Flock {
         const ai = v === "S" ? 0 : 1, ci = cnt[ai]++;
         if (ci >= N_CROWD) continue;
         this.e.set(-pitch, yaw, 0); this.q.setFromEuler(this.e);
-        this.m4.compose(this.v3.set(b.x, 0, b.z), this.q, this.s3.set(mirror ? -s : s, s, s));
+        this.m4.compose(this.v3.set(b.x, gy, b.z), this.q, this.s3.set(mirror ? -s : s, s, s));
         this.crowd[ai].setMatrixAt(ci, this.m4);
         this.cellAttr[ai].setX(ci, v === "S" ? sideCell(pose) : frontCell(pose));
       }
       if (b.key === "bush") continue;
       if (bi < N_CROWD + N_HERO) {
         this.q.setFromAxisAngle(this.v3.set(0, 1, 0), yaw);
+        if (id === 4) { const gx = groundY(b.x + 0.5, b.z) - groundY(b.x - 0.5, b.z), gz = groundY(b.x, b.z + 0.5) - groundY(b.x, b.z - 0.5); this.q.premultiply(this.qn.setFromUnitVectors(this.v3.set(0, 1, 0), this.nv.set(-gx, 1, -gz).normalize())); }
         const wide = v === "S" ? 1.15 : 0.85;
-        this.m4.compose(this.v3.set(b.x, 0.024, b.z), this.q, this.s3.set(wide * s, 1, 0.62 * s));
+        this.m4.compose(this.v3.set(b.x, gy + 0.024, b.z), this.q, this.s3.set(wide * s, 1, 0.62 * s));
         this.blobs.setMatrixAt(bi++, this.m4);
       }
     }
@@ -902,7 +911,7 @@ export class Flock {
       if (di >= N_DUST) break;
       const dx = p.x - cp.x, dz = p.z - cp.z;
       if (dx * this.fwd.x + dz * this.fwd.z < 0 || Math.hypot(dx, dz) > 140) continue;
-      const sz = p.s * (0.45 + 1.5 * p.age), y = 0.18 * p.s + 0.35 * p.age;
+      const sz = p.s * (0.45 + 1.5 * p.age), y = 0.18 * p.s + 0.35 * p.age + (id === 4 ? groundY(p.x, p.z) : 0);
       this.m4.compose(this.v3.set(p.x, y, p.z), cam.quaternion, this.s3.set(sz, sz, 1));
       this.dust.setMatrixAt(di, this.m4); this.dustA.setX(di, 0.55 * (1 - p.age) * Math.min(1, p.age * 8)); di++;
     }

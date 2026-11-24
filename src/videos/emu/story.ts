@@ -134,11 +134,11 @@ const CAMS: Record<number, Key[]> = {
   ]),
   // 3 golden farm: wide with the homestead, glide down to the soldiers -> farmers
   3: shot(3, [
-    [161, Fa(-8.5, 4.2, 6), Fa(-18.5, 0.6, -26), 42],
-    [215, Fa(-12, 2.8, -4), Fa(-18, 0.7, -25), 40],
-    [252, Fa(-16.2, 1.75, -12), Fa(-17.4, 0.75, -24), 38],
-    [320, Fa(-17.2, 1.65, -12.6), Fa(-17.4, 0.8, -24), 37, 0.02],
-  ], [-0.15, 0, 0]),
+    [161, Fa(-12.6, 2.7, -6.5), Fa(-17.7, 0.8, -24.6), 38], // QA: start closer so the four soldiers read from frame 1
+    [215, Fa(-14.4, 2.25, -9.6), Fa(-17.8, 0.75, -24.4), 38],
+    [252, Fa(-16.2, 1.75, -12), Fa(-17.15, 0.75, -24), 38],
+    [320, Fa(-17.0, 1.65, -12.9), Fa(-17.2, 0.8, -24), 36.5, 0.02],
+  ], [-0.06, 0, 0]),
   // 4 deadpan wide: the hill fills with the wave behind the tiny farmers, crane down as it arrives
   4: shot(4, [
     [320, Fa(12, 4, 42), Fa(0, 8, -215), 24],
@@ -146,9 +146,9 @@ const CAMS: Record<number, Key[]> = {
   ]),
   // 5 office: phone ringing in the foreground, the major behind the desk; push in
   5: shot(5, [
-    [411, Of(-0.95, 1.45, 3.0), Of(0.15, 1.02, -0.1), 38],
-    [452, Of(-0.65, 1.42, 2.5), Of(0.15, 1.05, -0.15), 36],
-    [487, Of(-0.5, 1.4, 2.25), Of(0.1, 1.08, -0.25), 34, 0.02],
+    [411, Of(-0.95, 1.45, 3.0), Of(0.05, 1.12, -0.1), 39], // QA: major's head + pop cards inside frame
+    [452, Of(-0.65, 1.42, 2.5), Of(0.05, 1.15, -0.15), 37],
+    [487, Of(-0.5, 1.4, 2.25), Of(0.0, 1.18, -0.25), 35, 0.02],
   ]),
   // 6 the line-up: pull back as each item lands (major, soldiers, guns, crates)
   6: shot(6, [
@@ -223,9 +223,9 @@ const CAMS: Record<number, Key[]> = {
   ]),
   // 17 final score: wide, push to the board for "one"/"zero", then the hatted emu's victory close-up
   17: shot(17, [
-    [1621, Sc(0.6, 2.4, 17), Sc(0, 1.5, -1), 42],
-    [1660, Sc(0.3, 2.2, 11), Sc(0, 1.55, 0), 38],
-    [1702, Sc(0.1, 2.2, 10), Sc(0, 1.55, 0), 38],
+    [1621, Sc(0.6, 2.7, 17), Sc(0, 1.95, -1), 42],
+    [1660, Sc(0.3, 2.5, 11), Sc(-0.1, 2.0, 0), 38],
+    [1702, Sc(0.1, 2.5, 10), Sc(-0.1, 2.0, 0), 38],
     [1738, Sc(3.5, 1.85, 8.0), Sc(2.2, 1.25, 1.7), 38],
     [1800, Sc(3.3, 1.8, 7.3), Sc(2.2, 1.25, 1.7), 37, 0.02],
   ]),

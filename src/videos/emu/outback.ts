@@ -912,6 +912,7 @@ export class Outback {
     for (let i = 0, n = 0; i < 1500 && n < 50; i++) {
       const a = R() * TAU, d = 40 + R() ** 1.5 * 500, x = dx + Math.cos(a) * d, z = dz + Math.sin(a) * d, h = 9 + R() * 9;
       if (this.blocks("dam", x, z, groundY(x, z) + h, 0.35 * h)) continue;
+      if (Math.hypot(x - HIDE[0], z - HIDE[2] - 17) < 6) { R(); continue; } // its big shadow lay across the bottom of the shot-8 wide
       this.gum(b, x, z, h, 400 + i, R() < 0.2); n++;
     }
     for (let i = 0, n = 0; i < 3000 && n < 220; i++) {
@@ -1059,7 +1060,7 @@ export class Outback {
       // stack of files
       for (let k = 0; k < 4; k++) b.add(box(-0.72, top + k * 0.035, dz + 0.05, -0.38, top + k * 0.035 + 0.03, dz + 0.3), [lamC("f0", "#c9a66a"), lamC("f1", "#8a5a3a"), lamC("f2", "#b8b090")][k % 3], O(0.02 * (k % 2), 0, 0));
       // chair behind the desk
-      const cz = -0.45; b.add(box(-0.25, 0.45, cz - 0.22, 0.25, 0.5, cz + 0.22), wood, O(0, 0, 0)); b.add(box(-0.25, 0.5, cz - 0.24, 0.25, 1.05, cz - 0.2), wood, O(0, 0, 0));
+      const cz = -1.15; /* QA: behind the major at OFFICE_SPOT z -0.8 */ b.add(box(-0.25, 0.45, cz - 0.22, 0.25, 0.5, cz + 0.22), wood, O(0, 0, 0)); b.add(box(-0.25, 0.5, cz - 0.24, 0.25, 1.05, cz - 0.2), wood, O(0, 0, 0));
       for (const [lx, lz] of [[-0.22, cz - 0.2], [0.22, cz - 0.2], [-0.22, cz + 0.2], [0.22, cz + 0.2]]) b.add(box(lx - 0.025, 0, lz - 0.025, lx + 0.025, 0.45, lz + 0.025), woodD, O(0, 0, 0));
     }
     // wall map of WA (framed) on the back wall, behind and left of the desk
