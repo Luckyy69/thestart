@@ -25,6 +25,7 @@
 //   shot 17 the beaten army at SCORE+(-1.2,0,3.0) (major, white flag) (-1.75,0,2.3) (-0.65,0,2.2)
 import { Stage, CamInfo, Who, Place, person, blob, prepStage, lidAt, hh, q, SU } from "../bridge/cast";
 import { Pen, SKINS, Outfit, Expr, FrontOpts } from "../bridge/toon";
+import { truckToWorld } from "./props";
 import { W, LEAD, FARM, DAM, HIDE, ROAD, OFFICE, SCORE, smooth, clamp01, V3, chaseAt, jamAt } from "./story";
 import { Acc, accKey, accFront, geoOf, Geo, CardMode, mouthPt, KHAKI, KHAKI_D, FELT,
   fxQuestion, fxBang, fxSweat, fxDust, fxPoof, fxSpeed, fxSparkle, fxRing, fxThought, fxNews, NEWS_CW, NEWS_CH } from "./fx";
@@ -32,7 +33,6 @@ import { Acc, accKey, accFront, geoOf, Geo, CardMode, mouthPt, KHAKI, KHAKI_D, F
 /** where the candlestick telephone stands on the office desk (props): the RING burst floats 0.38 m above it */
 export const PHONE: V3 = [OFFICE[0] + 0.42, 0.76, OFFICE[2] + 0.12];
 /** truck body bounce on the ruts (m), shots 10-11: props should add this to the truck's y so the riders stay seated */
-export const truckBump = (t: number) => 0.03 * Math.abs(Math.sin(t * 9.1)) + 0.012 * Math.sin(t * 23.3 + 1.1);
 void DAM;
 
 const seedOf = (i: number) => ((i * 5 + 3) % 7) + 1; // same head-shape seed as bridge/cast person()
@@ -265,23 +265,24 @@ const ambush = (id: number, t: number, cam: CamInfo, out: Stage) => {
 
 // ---------------- shots 10-11: the truck ----------------
 const truck = (id: number, t: number, cam: CamInfo, out: Stage) => {
-  const c = chaseAt(id, t), tx = ROAD[0] + c.truckX, tz = ROAD[2], b = truckBump(t);
+  const c = chaseAt(id, t), tx = ROAD[0] + c.truckX, tz = ROAD[2];
   const run = id === 11 && on(t, W.fifty), cant = id === 11 && on(t, W.cant);
-  // driver (deadpan), major in the passenger seat (nearer +z), gunner on the tray
-  dude(out, cam, t, 42, SOLDIER(2), "s2", SOLDIER_ACC, tx + 0.45, 0.9 + b, tz - 0.38, "sit", { expr: cant ? "nervous" : "neutral", swaps: [W.cant] }, 1, false);
+  // riders ride the sprung truck body (props.truckToWorld): seats at truck-local (-0.12, 0.90, +-0.38), gunner on the tray
+  const DRV = truckToWorld(id, t, [-0.12, 0.9, -0.38]), MAJ = truckToWorld(id, t, [-0.12, 0.9, 0.38]), GUN = truckToWorld(id, t, [-1.4, 1.05, 0]);
+  dude(out, cam, t, 42, SOLDIER(2), "s2", SOLDIER_ACC, DRV[0], DRV[1], DRV[2], "sit", { expr: cant ? "nervous" : "neutral", swaps: [W.cant] }, 1, false);
   const mood = cant ? -1 : run ? 0 : 1;
   const mexpr: Expr = cant ? "nervous" : run ? "shock" : id === 10 && on(t, W.truck) ? "laugh" : "grin";
-  dude(out, cam, t, 40, MAJOR, "maj", majorAcc(mood), tx + 0.45, 0.9 + b, tz + 0.38, "sit",
+  dude(out, cam, t, 40, MAJOR, "maj", majorAcc(mood), MAJ[0], MAJ[1], MAJ[2], "sit",
     { expr: mexpr, wave: !run && !cant ? q(0.7 + 0.3 * Math.sin(t * 6), 6) : undefined, swaps: [W.truck, W.fifty, W.cant] }, 1, false);
   const firing = id === 11 && !cant && t > SHOT_T[11][0] + 0.2;
-  dude(out, cam, t, 41, SOLDIER(1), "s1", SOLDIER_ACC, tx - 1.4, 1.05 + b, tz, "stand",
+  dude(out, cam, t, 41, SOLDIER(1), "s1", SOLDIER_ACC, GUN[0], GUN[1], GUN[2], "stand",
     { expr: cant ? "dazed" : firing ? "stern" : "neutral", tilt: firing ? q(2 * Math.sin(t * 57), 4) : 0, swaps: [W.cant] }, 1, false);
-  if (id === 10) pop(out, t, 40, tx + 0.45, 0.9 + b + crownY(geoOf(seedOf(40), "sit", 0, "stout")) + 0.45, tz + 0.38, W.truck, true, 0.9, W.truck + 1.0);
+  const sy = MAJ[1] + crownY(geoOf(seedOf(40), "sit", 0, "stout"));
+  if (id === 10) pop(out, t, 40, MAJ[0], sy + 0.45, MAJ[2], W.truck, true, 0.9, W.truck + 1.0);
   if (id === 11) {
-    const sy = 0.9 + b + crownY(geoOf(seedOf(40), "sit", 0, "stout"));
-    pop(out, t, 40, tx + 0.45, sy + 0.45, tz + 0.38, W.fifty, true, 1, W.cant - 0.1);
-    pop(out, t, 40, tx + 0.45, sy + 0.45, tz + 0.38, W.keepup);
-    if (cant) { sweat(out, t, 40, tx + 0.45, sy - 0.2, tz + 0.38, cam, W.cant); sweat(out, t, 42, tx + 0.45, sy - 0.2, tz - 0.38, cam, W.cant + 0.3); }
+    pop(out, t, 40, MAJ[0], sy + 0.45, MAJ[2], W.fifty, true, 1, W.cant - 0.1);
+    pop(out, t, 40, MAJ[0], sy + 0.45, MAJ[2], W.keepup);
+    if (cant) { sweat(out, t, 40, MAJ[0], sy - 0.2, MAJ[2], cam, W.cant); sweat(out, t, 42, DRV[0], sy - 0.2, DRV[2], cam, W.cant + 0.3); }
     // speed lines trailing the leading emus (flock: the pack runs at x = truckX + lead, |z| < 1.5)
     const ex = tx + c.lead, k = smooth((t - (W.run - LEAD)) / 0.3);
     if (k > 0.02) for (let j2 = 0; j2 < 3; j2++) {
