@@ -1,0 +1,22 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;background:#000}
+#t{position:relative;width:1080px;height:1920px;overflow:hidden;font-family:"Inter Display","Inter";font-weight:900}
+#bg{position:absolute;left:-110px;top:130px;width:1300px;height:2311px;object-fit:cover;filter:saturate(1.25) contrast(1.08)}
+.vig{position:absolute;inset:0;background:linear-gradient(#0b0610f0 0%,#0b061000 26%,#0b061000 62%,#0b0610e6 82%)}
+.o{position:absolute;left:0;right:0;text-align:center;letter-spacing:-4px;-webkit-text-stroke:0;paint-order:stroke fill}
+.big{top:80px;font-size:172px;line-height:.9;color:#fff;text-shadow:0 0 0 #000,0 10px 0 #1d1424}
+.sub{top:420px;font-size:96px;color:#ffd24a}
+.o span{-webkit-text-stroke:26px #1d1424;paint-order:stroke fill}
+#board{position:absolute;left:150px;right:150px;top:1390px;height:420px;background:#22302b;border:14px solid #1d1424;border-radius:28px;box-shadow:0 0 60px #ffd24a88,inset 0 0 0 8px #3b5248}
+.row{display:flex;justify-content:space-between;align-items:center;padding:0 60px;height:200px;color:#f3ead2;font-size:130px;letter-spacing:-2px}
+.row b{display:inline-block;width:150px;text-align:center;background:#111a17;border-radius:16px;color:#fff;font-size:150px;line-height:170px}
+.row.top{border-bottom:8px solid #3b5248}
+.brand{position:absolute;left:40px;bottom:30px;color:#fff;font-size:40px;-webkit-text-stroke:10px #1d1424;paint-order:stroke fill}
+</style></head><body>
+<div id="t"><img id="bg" src="emu_150.jpg"><div class="vig"></div>
+<div class="o big"><span>AUSTRALIA<br>vs EMUS</span></div>
+<div class="o sub"><span>THE ARMY LOST.</span></div>
+<div id="board"><div class="row top">EMUS<b>1</b></div><div class="row">ARMY<b>0</b></div></div>
+<div class="brand">BEAN STORIES</div></div>
+<script>document.querySelector('#bg').decode().then(()=>document.fonts.ready).then(()=>document.title='done')</script>
+</body></html>

@@ -1,0 +1,57 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#000}canvas{display:block}</style></head><body>
+<canvas id="logo" width="800" height="800"></canvas><canvas id="banner" width="2560" height="1440"></canvas>
+<script>
+const INK = "#1d1424";
+function bean(g, cx, cy, s, look) {            // our house-style bean head: egg shape, dot eyes, brows, smile, ink outline
+  g.save(); g.translate(cx, cy); g.scale(s, s);
+  // body hint
+  g.beginPath(); g.ellipse(0, 235, 150, 120, 0, Math.PI, 0); g.fillStyle = "#e8562f"; g.fill(); g.lineWidth = 16; g.strokeStyle = INK; g.stroke();
+  // head (bean/egg)
+  g.beginPath();
+  for (let i = 0; i <= 64; i++) { const a = i / 64 * Math.PI * 2; const r = 1 + 0.06 * Math.sin(a) ; const x = 150 * Math.cos(a) * (Math.sin(a) > 0 ? 0.93 : 1.0); const y = -165 * r * Math.sin(a) * -1; i ? g.lineTo(x, y) : g.moveTo(x, y); }
+  g.closePath(); g.fillStyle = "#ffe0bd"; g.fill(); g.lineWidth = 18; g.strokeStyle = INK; g.stroke();
+  // shading crescent
+  g.save(); g.clip(); g.beginPath(); g.ellipse(70, 20, 150, 175, 0, 0, Math.PI * 2); g.fillStyle = "rgba(232,150,110,0.25)"; g.fill(); g.restore();
+  // hair cap
+  g.beginPath(); g.moveTo(-150, -40); g.bezierCurveTo(-160, -200, 160, -220, 150, -40); g.bezierCurveTo(90, -95, 10, -60, -40, -110); g.bezierCurveTo(-70, -70, -110, -70, -150, -40);
+  g.fillStyle = "#5a3424"; g.fill(); g.lineWidth = 14; g.stroke();
+  // eyes + brows + smile
+  for (const x of [-50, 50]) { g.beginPath(); g.ellipse(x + look, 5, 17, 21, 0, 0, Math.PI * 2); g.fillStyle = INK; g.fill(); g.beginPath(); g.arc(x + look - 5, -2, 5, 0, Math.PI * 2); g.fillStyle = "#fff"; g.fill(); }
+  g.lineCap = "round"; g.lineWidth = 12; g.strokeStyle = INK;
+  g.beginPath(); g.moveTo(-75, -40); g.lineTo(-25, -50); g.stroke(); g.beginPath(); g.moveTo(25, -52); g.lineTo(75, -44); g.stroke();
+  g.beginPath(); g.moveTo(-45, 70); g.quadraticCurveTo(0, 115, 48, 68); g.lineTo(-45, 70); g.fillStyle = "#7a2230"; g.fill(); g.stroke();
+  g.beginPath(); g.ellipse(2, 92, 22, 9, 0, 0, Math.PI * 2); g.fillStyle = "#ef6f7d"; g.fill();
+  g.restore();
+}
+function extruded(g, text, x, y, size, face, side, depth, align = "center") { // chunky 3D lettering with an ink outline
+  g.font = `900 ${size}px Inter`; g.textAlign = align; g.textBaseline = "middle"; g.lineJoin = "round";
+  for (let d = depth; d > 0; d--) { g.fillStyle = side; g.fillText(text, x + d * 0.6, y + d); g.lineWidth = size * 0.12; g.strokeStyle = INK; if (d === depth) g.strokeText(text, x + d * 0.6, y + d); }
+  g.lineWidth = size * 0.12; g.strokeStyle = INK; g.strokeText(text, x, y);
+  g.fillStyle = face; g.fillText(text, x, y);
+  g.save(); g.globalCompositeOperation = "source-atop"; g.restore();
+}
+function rays(g, cx, cy, n, r, c1, c2, w, h) {
+  g.save(); g.beginPath(); g.rect(0, 0, w, h); g.clip();
+  for (let i = 0; i < n; i++) { const a0 = i / n * Math.PI * 2, a1 = (i + 0.5) / n * Math.PI * 2; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + r * Math.cos(a0), cy + r * Math.sin(a0)); g.lineTo(cx + r * Math.cos(a1), cy + r * Math.sin(a1)); g.closePath(); g.fillStyle = i % 2 ? c1 : c2; g.fill(); }
+  g.restore();
+}
+document.fonts.load("900 100px Inter").then(() => {
+  // ---- logo 800x800 (shown as a circle) ----
+  const L = document.getElementById("logo").getContext("2d");
+  L.fillStyle = "#ffb627"; L.fillRect(0, 0, 800, 800);
+  rays(L, 400, 420, 24, 900, "#ffc54d", "#ffb627", 800, 800);
+  bean(L, 400, 400, 1.5, 6);
+  // ---- banner 2560x1440 (safe area: centre 1546x423) ----
+  const B = document.getElementById("banner").getContext("2d");
+  const gr = B.createLinearGradient(0, 0, 0, 1440); gr.addColorStop(0, "#1b6f8a"); gr.addColorStop(1, "#0f3f5c"); B.fillStyle = gr; B.fillRect(0, 0, 2560, 1440);
+  rays(B, 1280, 720, 36, 2200, "rgba(255,255,255,0.045)", "rgba(255,255,255,0)", 2560, 1440);
+  // little beans peeking along the bottom (outside the safe area is fine)
+  const peek = [[320, 1330, 0.9], [760, 1360, 0.7], [1800, 1360, 0.7], [2240, 1330, 0.9]];
+  for (const [x, y, s] of peek) bean(B, x, y, s, x < 1280 ? 10 : -10);
+  bean(B, 680, 700, 0.95, 14);
+  extruded(B, "BEAN", 1470, 610, 210, "#ffffff", "#e8562f", 24);
+  extruded(B, "STORIES", 1470, 790, 210, "#ffd36b", "#e8562f", 24);
+  B.font = "700 46px Inter"; B.textAlign = "center"; B.fillStyle = "#ffffff"; B.fillText("True stories. Way too weird to make up.", 1470, 915);
+  document.title = "done";
+});
+</script></body></html>

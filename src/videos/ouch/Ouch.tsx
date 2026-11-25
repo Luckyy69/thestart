@@ -20,6 +20,7 @@ import { Kit } from "../bridge/build";
 import { TOTAL, FLASHES, SHOTS, layersAt, dofAt } from "./story";
 import { WORDS } from "./voice";
 import { Captions } from "../common/Captions";
+import { Watermark } from "../common/Watermark";
 const useStoryFrame = () => useCurrentFrame();
 
 export const OUCH_FRAMES = TOTAL;
@@ -120,6 +121,7 @@ export const OuchShort: React.FC = () => {
       {layersAt(f).map((l, i) => <ShotView key={i ? "over" : "base"} id={l.id} kit={kit} alpha={l.alpha} />)}
       {flash > 0 && <AbsoluteFill style={{ background: "#ffffff", opacity: flash }} />}
       {(getInputProps() as { noCaptions?: boolean }).noCaptions ? null : <Captions words={WORDS} />}
+      {(getInputProps() as { noWatermark?: boolean }).noWatermark ? null : <Watermark />}
     </AbsoluteFill>
   );
 };
