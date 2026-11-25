@@ -87,7 +87,7 @@ const headCanvas = (r: Rig, dy = 0): P2 => {
   return [hc[0] - Math.sin(a) * dy, hc[1] + Math.cos(a) * dy - (r.pose.lift ?? 0)];
 };
 const TILTS: Partial<Record<Face, number>> = { sleepy: 4, drama: -10, peek: -8, relief: -4, defeated: 6 };
-const mouthCanvas = (r: Rig): P2 => headCanvas(r, (MOUTH_DY + 4) * HEAD_U);
+const mouthCanvas = (r: Rig): P2 => headCanvas(r, (MOUTH_DY + 4) * HEAD_U * (r.face.e === "meme" ? 1 + 0.14 * (r.face.k ?? 1) : 1)); // meme: drawGuy grows the head 14%
 const toeCanvas = (pose: Pose): P2 => { const F = pose.feet[1]; const raised = F[1] < 900; return [F[0] + (raised ? 42 : 46), F[1] + (raised ? 4 : 18) - (pose.lift ?? 0)]; };
 
 // ---------------- BEAN ----------------
@@ -106,9 +106,10 @@ const walkPose = (dist: number, mugHand: P2): Pose => {
 };
 const MUG_CHEST: P2 = [212, 470], MUG_SIP: P2 = [262, 372], FOREHEAD: P2 = [166, 214];
 /** the Oscar-worthy faint: arched back, mug hand to the brow, stubbed foot clutched, on tiptoe */
-const faintPose = (k: number, since: number): Pose => {
+const BROW: P2 = [128, 236], FLUNG: P2 = [548, 300];
+const faintPose = (k: number, since: number): Pose => { // QA1: Oscar swoon: mug hand to the brow, the free arm flung out wide, foot kicked up
   const h = hopPose(Math.max(since, 0.5), MUG_CHEST, 46 * (1 - k));
-  return { ...h, hands: [lerp2(MUG_CHEST, FOREHEAD, k), [404, 760]], front: [true, true], open: [false, false], lean: q(-0.24 * k, 50), lift: q(14 * k, 0.5), headTilt: -6 * k };
+  return { ...h, feet: [h.feet[0], lerp2(RAISED, [452, 742], k)], hands: [lerp2(MUG_CHEST, BROW, k), lerp2([404, 760], FLUNG, k)], front: [true, true], open: [false, true], lean: q(-0.27 * k, 50), lift: q(16 * k, 0.5), headTilt: -8 * k };
 };
 const FAINT_AT = W.dramatic - 0.6; // lands on "dramatic" (props hopAt fades out by dramatic - 0.35)
 const bean1 = (t: number): Rig => {
@@ -121,8 +122,8 @@ const bean1 = (t: number): Rig => {
   else {
     const k = smooth((t - FAINT_AT) / 0.55);
     pose = faintPose(k, since);
-    if (k < 1) pose.hands[0] = lerp2([150, 380], FOREHEAD, k);
-    roll = 0.1 * k + 0.012 * Math.sin((t - FAINT_AT) * 4) * k;
+    if (k < 1) pose.hands[0] = lerp2([150, 380], BROW, k);
+    roll = 0.12 * k + 0.025 * Math.sin((t - FAINT_AT) * 3.2) * k;
   }
   const e = faceAt(t, [[-9, "sip"], [STUB1, "shock"], [STUB1 + 0.22, "pain"], [W.ow0, "ow"], [W.brain0, "pain"], [FAINT_AT, "drama"], [W.dramatic + 0.45, "peek"]]);
   return { who: "bean", kit: KITS.bean, pose, face: { e, k: e === "ow" ? q(spring(t, W.ow0, 0.25), 10) : 1, shake: Math.floor(t * 15) % 3 }, swaps: [W.ow0, FAINT_AT], A: [HOME[0] + st.x, hopAt(1, t), HOME[2]], roll: q(roll, 200), sc: 1 };
@@ -131,7 +132,7 @@ const T_FREEZE = SHOTS[0].b / FPS - 0.001;
 const bean2 = (t: number): Rig => {
   const r = bean1(T_FREEZE), sg = signalAt(2, t);
   const e: Face = on(t, W.owA) ? "relief" : sg.mouth > 0.02 ? "ow" : "peek";
-  return { ...r, roll: q(0.1, 200), face: { e, k: e === "ow" ? q(sg.mouth, 10) : 1 }, swaps: [W.owA] };
+  return { ...r, face: { e, k: e === "ow" ? q(sg.mouth, 10) : 1 }, swaps: [W.owA] };
 };
 const bean8 = (t: number): Rig => {
   const st = stubAt(8, t), since = t - STUB8, beep = BEEPS.find((b) => b[1] === "bean")![0];
@@ -162,7 +163,7 @@ const planetRig = (i: number, t: number): Rig => {
 
 // ---------------- the lab ----------------
 const VOL_A: V3 = [LAB[0] - 0.85, 0, LAB[2] - 0.34], VOL_B: V3 = [LAB[0] + 0.85, 0, LAB[2] - 0.34], SCI_C: V3 = [LAB[0], 0, LAB[2] - 0.78];
-const ICE_Y = 0.85;
+const ICE_Y = 0.79; // QA2: the card sits behind the tub back wall, so the hand must sit lower to read as dunked under the 0.86 surface
 const iceHand = (vol: V3, tub: V3): P2 => [300 + (tub[0] - vol[0]) / SU, 975 - ICE_Y / SU];
 const shiverX = (t: number, i: number, k: number) => k * 0.007 * (Math.floor(t * 30 + i) % 2 ? 1 : -1);
 const volunteer = (id: number, t: number, who: "volA" | "volB" | "fouch" | "sailor"): Rig => {
@@ -171,15 +172,15 @@ const volunteer = (id: number, t: number, who: "volA" | "volB" | "fouch" | "sail
   let iceK = inK, free: P2 = isA ? [206, 566] : [394, 566], e: Face = "worried", k = 1, look = 0, swaps: number[] = [];
   if (who === "volA") {
     if (id === 4) { e = faceAt(t, [[-9, "worried"], [W.ice, "cold"], [W.ow2, "ow"], [W.twenty, "proud"], [W.hearing, "cold"], [W.yourself, "proud"]]); swaps = [W.ice, W.ow2, W.twenty, W.hearing, W.yourself]; if (e === "ow") k = q(spring(t, W.ow2, 0.25), 10); }
-    else { e = "cold"; look = id === 5 || id === 6 ? 1 : 0; }
+    else { e = "cold"; look = id === 5 || id === 6 ? 1 : 0; if (id === 5 && !on(t, W.another)) { e = "proud"; look = 0; } swaps = id === 5 ? [W.another] : []; } // QA2: match shot 4's end pose through the 4->5 dissolve
   } else if (who === "volB") {
     if (id === 4) {
-      e = faceAt(t, [[-9, "worried"], [W.ice, "cold"], [W.hearing, "deadpan"], [W.didnt, "defeated"]]); swaps = [W.ice, W.hearing, W.didnt];
+      e = faceAt(t, [[-9, "worried"], [W.ice, "cold"], [W.hearing, "deadpan"], [W.yourself, "defeated"]]); swaps = [W.ice, W.hearing, W.yourself]; // QA2: deadpan holds through "Didn't help"
       const out = smooth((t - (W.didnt - LEAD)) / 0.3); iceK = inK * (1 - out); if (out > 0) free = lerp2(free, [404, 360], out);
     } else if (id === 5) { e = "strain"; k = q(0.4 + 0.6 * smooth((t - W.another) / (W.swearing - W.another)), 10); }
     else { e = faceAt(t, [[-9, "strain"], [W.swearing, "meme"], [W.third - 0.25, "memeAfter"]]); swaps = [W.third - 0.25]; if (e === "meme") k = q(Math.min(1.1, spring(t, W.swearing, 0.18)), 20); }
   } else if (who === "fouch") {
-    e = faceAt(t, [[-9, "cold"], [W.madeup, "intense"], [W.words, "fouch"], [W.work, "sheepish"]]); swaps = [W.madeup, W.work];
+    e = faceAt(t, [[-9, "cold"], [W.madeup, "intense"], [W.words, "fouch"], [W.work, "defeated"]]); swaps = [W.madeup, W.work];
     if (e === "fouch") k = q(spring(t, W.words, 0.2), 10);
     if (on(t, W.words) && !on(t, W.work)) free = [150, 330];
   } else {
@@ -188,7 +189,7 @@ const volunteer = (id: number, t: number, who: "volA" | "volB" | "fouch" | "sail
   const handIn = lerp2(free, ice, iceK), hands: [P2, P2] = isA ? [free, handIn] : [handIn, free];
   const cold = iceK > 0.3 || e === "defeated";
   const A: V3 = [base[0] + shiverX(t, IDX[who], cold && e !== "meme" && who !== "sailor" ? 1 : 0), 0, base[2]];
-  return { who, kit: KITS[who], pose: { feet: STAND, hands: [qp(hands[0]), qp(hands[1])], front: isA ? [false, true] : [true, false], blue: q(Math.max(iceK, e === "defeated" ? 1 : 0), 10) }, face: { e, k, look, shake: Math.floor(t * 15) % 6 }, swaps, A, roll: 0, sc: 1, shake: e === "meme" ? 1 : 0 };
+  return { who, kit: KITS[who], pose: { feet: STAND, hands: [qp(hands[0]), qp(hands[1])], front: isA ? [false, true] : [true, false], blue: q(Math.max(iceK, e === "defeated" || (id === 4 && e === "deadpan") ? 1 : 0), 10) }, face: { e, k, look, shake: Math.floor(t * 15) % 6 }, swaps, A, roll: 0, sc: 1, shake: e === "meme" ? 1 : 0 };
 };
 const sci1 = (id: number, t: number): Rig => {
   let e: Face = "smile", hands: [P2, P2] = [[214, 592], [386, 592]], look = 0, swaps: number[] = [];
@@ -203,14 +204,14 @@ const sci1 = (id: number, t: number): Rig => {
     if (on(t, W.yourself)) hands = [[132, 470], CLIP];
     if (e === "look") look = 1;
     if (e === "wow") look = -1;
-  } else { e = faceAt(t, [[-9, "look"], [W.stronger, "wow"]]); look = 1; hands = [[214, 592], [372, 520]]; }
-  return { who: "sci1", kit: KITS.sci1, pose: { feet: STAND, hands, front: [true, true], open: [on(t, W.yourself) && id === 4, false] }, face: { e, look }, swaps, A: SCI_C, roll: 0, sc: 1 };
+  } else { e = faceAt(t, [[-9, "look"], [W.stronger, "wow"]]); look = 1; hands = [[214, 592], [372, 520]]; if (id === 5 && !on(t, W.another)) { e = "point"; look = 0; hands = [[132, 470], [372, 520]]; } swaps = [W.another, W.stronger]; } // QA2: no double-exposure in the 4->5 dissolve
+  return { who: "sci1", kit: KITS.sci1, pose: { feet: STAND, hands, front: [true, true], open: [on(t, W.yourself) && (id === 4 || (id === 5 && !on(t, W.another))), false] }, face: { e, look }, swaps, A: SCI_C, roll: 0, sc: 1 };
 };
 const SCI2_IN: V3 = [LAB[0] + 2.0, 0, LAB[2] - 0.95], SCI2_AT: V3 = [LAB[0] + 1.3, 0, LAB[2] - 0.95];
 const sci2 = (id: number, t: number): Rig => {
   let A = SCI2_AT, e: Face = "serious", hands: [P2, P2] = [[214, 592], [372, 520]], feet = STAND, look = 0;
   if (id === 5) {
-    const u = smooth((t - (W.another - 0.4)) / 1.0); A = [lerp(SCI2_IN[0], SCI2_AT[0], u), 0, SCI2_AT[2]];
+    const u = smooth((t - (W.another - 0.05)) / 1.1); // QA2: walk in while the camera pans to him, arrive before "stronger" A = [lerp(SCI2_IN[0], SCI2_AT[0], u), 0, SCI2_AT[2]];
     if (u > 0 && u < 1) { const s = Math.sin(u * Math.PI * 4); feet = [[272 - 18 * s, 950 - 22 * Math.max(0, s)], [328 + 18 * s, 950 - 22 * Math.max(0, -s)]]; }
     e = faceAt(t, [[-9, "serious"], [W.stronger, "intense"]]);
     if (on(t, W.stronger)) hands = [[214, 592], [404, 300]];
@@ -309,9 +310,10 @@ const drawRig = (out: Stage, r: Rig, t: number, cam: CamInfo) => {
 };
 
 // ---------------- effects ----------------
+let UP_FIX = false; // QA1: cross(right, n) points DOWN on screen; shots 1-3 use the true screen-up (set per castAt call)
 const camVecs = (cam: CamInfo, at: V3) => {
   const n = new THREE.Vector3(cam.pos.x - at[0], cam.pos.y - at[1], cam.pos.z - at[2]).normalize();
-  const up = new THREE.Vector3().crossVectors(cam.right, n).normalize();
+  const up = UP_FIX ? new THREE.Vector3().crossVectors(n, cam.right).normalize() : new THREE.Vector3().crossVectors(cam.right, n).normalize();
   return { R: [cam.right.x, cam.right.y, cam.right.z] as V3, N: [n.x, n.y, n.z] as V3, U: [up.x, up.y, up.z] as V3 };
 };
 /** pop-in envelope: springs in at t0, holds, fades out over 0.3 s at t1 */
@@ -321,21 +323,21 @@ const env = (t: number, t0: number, t1: number, dur = 0.22) => {
   return Math.max(0, s * o);
 };
 /** comic OW! burst beside the head (screen-side sd), alpha + spring */
-const owBurst = (out: Stage, t: number, t0: number, head: V3, cam: CamInfo, word: string, size: number, sd = 1, rot = 0, life = 1.6) => {
+const owBurst = (out: Stage, t: number, t0: number, head: V3, cam: CamInfo, word: string, size: number, sd = 1, rot = 0, life = 1.6, dx = 0.62, dy = 0.35) => {
   const k = env(t, t0 - LEAD, t0 + life);
   if (k < 0.02) return;
   const { R, N, U } = camVecs(cam, head), wob = 0.06 * Math.sin((t - t0) * 9);
-  const P = add(add(add(head, R, sd * size * 0.62), U, size * 0.35), N, 0.12);
+  const P = add(add(add(head, R, sd * size * dx), U, size * dy), N, 0.12);
   fxCard(out, `burst|${word}|${q(Math.min(1, k), 10)}`, 768, 640, (p) => fxBurst(p, word, 3, Math.min(1, k)), P, size * k, size * 0.83 * k, { rot: rot + sd * -0.12 + wob });
 };
-const bubble = (out: Stage, t: number, t0: number, t1: number, head: V3, cam: CamInfo, word: string, size: number, sd = 1, rot = 0, fizzleAt = 99) => {
+const bubble = (out: Stage, t: number, t0: number, t1: number, head: V3, cam: CamInfo, word: string, size: number, sd = 1, rot = 0, fizzleAt = 99, dx = 0.55, dy = 0.55, font = 0) => {
   const k = env(t, t0 - LEAD, t1);
   if (k < 0.02) return;
   const fz = q(smooth((t - fizzleAt) / 0.5), 10), a = q(Math.min(1, k) * (1 - 0.35 * fz), 10);
   const { R, N, U } = camVecs(cam, head), cr = Math.cos(rot), sr = Math.sin(rot);
-  const ox = sd * size * 0.55, oy = size * 0.55 - fz * size * 0.12; // offset in the (rolled) card plane
+  const ox = sd * size * dx, oy = size * dy - fz * size * 0.12; // offset in the (rolled) card plane
   const P = add(add(add(head, R, ox * cr - oy * sr), U, ox * sr + oy * cr), N, 0.1);
-  fxCard(out, `bub|${word}|${sd}|${a}|${fz}`, 640, 480, (p) => fxBubble(p, word, -sd, a, fz), P, size * k, size * 0.75 * k, { rot });
+  fxCard(out, `bub|${word}|${sd}|${a}|${fz}|${font}`, 640, 480, (p) => fxBubble(p, word, -sd, a, fz, undefined, font), P, size * k, size * 0.75 * k, { rot });
 };
 const tearsJet = (out: Stage, t: number, t0: number, t1: number, head: V3, cam: CamInfo, roll = 0, power = 1) => {
   if (t < t0 || t > t1 + 0.6) return;
@@ -421,6 +423,7 @@ const censor = (out: Stage, t: number, t0: number, t1: number, mouth: V3, cam: C
 // ---------------- per shot ----------------
 export const castAt = (id: number, t: number, cam: CamInfo, light: "day" | "golden"): Stage => {
   const out: Stage = { places: [], fx: [] };
+  UP_FIX = id <= 3;
   if (id === 3) cam = { ...cam, sun: globeSun(cam.pos) };
   prepStage(light, cam);
   for (const r of rigsAt(id, t)) {
@@ -429,7 +432,7 @@ export const castAt = (id: number, t: number, cam: CamInfo, light: "day" | "gold
     if (!r.up) blob(out, r.A[0], id === 1 || id === 2 || id === 8 ? 0.012 : 0, r.A[2], 1, 1 - Math.min(0.6, lift * 4));
     if (r.who === "bean") {
       if (id === 1) {
-        owBurst(out, t, W.ow0, head, cam, "OW!", 0.62, 1, 0, 2.2);
+        owBurst(out, t, W.ow0, head, cam, "OW!", 0.78, 1, 0, 2.2, 0.62, 0.3);
         tearsJet(out, t, W.ow0, FAINT_AT + 0.6, head, cam, F.roll, 1);
         stars(out, t, STUB1 + 0.05, W.ow0 - 0.1, head, cam);
         const toe = toWorld(F, toeCanvas(r.pose), 0.06), tk = env(t, STUB1, 99, 0.15);
@@ -447,8 +450,8 @@ export const castAt = (id: number, t: number, cam: CamInfo, light: "day" | "gold
         if (tk > 0.02) fxCard(out, "throb", 256, 256, fxThrob, add(toe, [0, 0.04, 0]), 0.16 * tk, 0.16 * tk, {});
       }
     } else if (id === 3) {
-      const C = COUNTRIES[i - 10], sd = i % 2 ? 1 : -1;
-      bubble(out, t, C.t, C.t + 2.4, head, cam, C.word, 1.1, sd, F.roll);
+      const C = COUNTRIES[i - 10], sd = i === 12 ? -1 : 1; // QA1: the open-sky side of each close-up (UK lamp post is screen-left)
+      bubble(out, t, C.t, C.t + 2.4, head, cam, C.word, 0.95, sd, F.roll, 99, 0.3, 0.6, 172); // QA1: big, above-beside the head, inside the close-up
       tearsJet(out, t, C.t, C.t + 1.2, head, cam, F.roll, 0.6);
     } else {
       const inIce = r.pose.blue ?? 0;
@@ -472,7 +475,6 @@ export const castAt = (id: number, t: number, cam: CamInfo, light: "day" | "gold
       }
       if (r.who === "fouch") {
         bubble(out, t, W.words, W.work + 1.0, head, cam, "FOUCH!", 0.62, 1, 0, W.didnt2);
-        mark(out, t, W.work + 0.15, W.work + 1.4, add(head, [0, 0.42, 0]), "?", 0.16);
       }
       if (r.who === "sailor") {
       }

@@ -527,10 +527,12 @@ export const fxBurst = (p: Pen, word: string, seed: number, a: number, col = "#f
   const g = p.g; g.save(); g.globalAlpha = a;
   const pts: P2[] = [], n = 22;
   for (let i = 0; i < n; i++) { const t = (i / n) * Math.PI * 2, r = i % 2 ? 0.62 + 0.08 * rnd(seed, i) : 0.92 + 0.08 * rnd(seed, i + 30); pts.push([384 + Math.cos(t) * 360 * r, 320 + Math.sin(t) * 290 * r]); }
-  p.poly(pts, col, 16);
-  p.poly(scalePts(pts, 0.78), mix(col, "#ff9a2a", 0.55), 0);
-  p.poly(scalePts(pts, 0.6), col, 0);
-  text(p, word, 384, 330, word.length > 3 ? 190 : 250, tcol, 30, 0, 640);
+  const outer: P2[] = pts.map(([x, y], i) => { const r = i % 2 ? 0.86 : 1.04; return [384 + (x - 384) * r, 320 + (y - 320) * r]; });
+  p.poly(outer, tcol, 14); // QA1: a red spiky back layer = classic comic punch
+  p.poly(scalePts(pts, 0.86), col, 14);
+  p.poly(scalePts(pts, 0.68), mix(col, "#ff9a2a", 0.55), 0);
+  p.poly(scalePts(pts, 0.52), col, 0);
+  text(p, word, 384, 334, word.length > 3 ? 190 : 236, tcol, 30, 10, 600);
   g.restore();
 };
 /** speech bubble (640 x 480) with a tail to the bottom-left (-1) / bottom-right (1); fizzle 0..1 deflates it */

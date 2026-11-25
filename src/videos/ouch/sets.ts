@@ -836,8 +836,9 @@ class Screen {
       const done = clamp01((v - R.done) * 20);
       if (R.badge && done > 0) {
         g.globalAlpha = a * done;
-        g.fillStyle = R.badge !== "+0%" ? "#2fd06a" : "#59627a"; rr(g, 1830, cy - 40, 180, 80, 40); g.fill();
-        txt(g, R.badge, 1920, cy + 3, 54, "#ffffff");
+        const nog = R.badge === "+0%", bw0 = nog ? 250 : 180; // QA2: "no gain" reads clearer than "+0%"
+        g.fillStyle = nog ? "#59627a" : "#2fd06a"; rr(g, 2010 - bw0, cy - 40, bw0, 80, 40); g.fill();
+        txt(g, nog ? "NO GAIN" : R.badge, 2010 - bw0 / 2, cy + 3, nog ? 44 : 54, "#ffffff");
       }
       g.globalAlpha = 1;
     }
@@ -870,7 +871,7 @@ const mistMat = () => new THREE.ShaderMaterial({
   transparent: true, depthWrite: false,
 });
 const waterMat = () => new THREE.ShaderMaterial({
-  uniforms: { uT: { value: 0 }, uDunk: { value: new THREE.Vector2(0, -0.06) }, uIce: { value: 0 }, uTi: { value: 0 }, uLit: { value: V3(1, 1, 1) }, uDeep: { value: V3(0.08, 0.32, 0.42) }, uSun: { value: V3(1, 0.9, 0.7) } },
+  uniforms: { uT: { value: 0 }, uDunk: { value: new THREE.Vector2(0, -0.15) }, uIce: { value: 0 }, uTi: { value: 0 }, uLit: { value: V3(1, 1, 1) }, uDeep: { value: V3(0.08, 0.32, 0.42) }, uSun: { value: V3(1, 0.9, 0.7) } },
   vertexShader: `varying vec3 vW; varying vec2 vL; void main(){ vL = position.xz; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
   fragmentShader: /* glsl */ `uniform float uT; uniform vec2 uDunk; uniform float uIce; uniform float uTi; uniform vec3 uLit; uniform vec3 uDeep; uniform vec3 uSun; varying vec3 vW; varying vec2 vL;
     void main(){

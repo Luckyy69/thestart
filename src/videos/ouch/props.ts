@@ -130,7 +130,7 @@ export const clipboardAt = (id: number, t: number): { show: number; pos: V3 } =>
 export const SAILOR_BEEPS: number[] = [W.allday + 0.15, W.allday + 0.85, W.less2 + 0.25];
 const CENSOR_HOLD: Record<string, number> = { swearer: 1.15, bean: 9, sailor: 0.45 };
 /** bar size (m) per who */
-export const CENSOR_SIZE: Record<string, [number, number]> = { swearer: [0.46, 0.16], bean: [0.3, 0.1], sailor: [0.15, 0.055] };
+export const CENSOR_SIZE: Record<string, [number, number]> = { swearer: [0.5, 0.21], bean: [0.32, 0.165], sailor: [0.15, 0.055] };
 const beepsOf = (who: string) => (who === "sailor" ? SAILOR_BEEPS : BEEPS.filter((b) => b[1] === who).map((b) => b[0]));
 /** censor state: k 0..1 visible, scale (pop overshoot), shake (rad), since = s since the latest beep, t0 = that beep */
 export const censorAt = (id: number, t: number, who: string): { k: number; scale: number; shake: number; since: number; t0: number } => {
@@ -278,7 +278,8 @@ class Xray {
     }
     for (let i = 0; i < 4; i++) {
       const y = lerp(X.neck[1] - 0.08, X.pelvis[1] + 0.2, i / 3.4), w = 0.17 - i * 0.012;
-      for (const sg of [-1, 1]) glowLine([[0.01 * sg, y], [w * 0.7 * sg, y + 0.02], [w * sg, y - 0.03], [w * 0.85 * sg, y - 0.08]], "rgba(235,255,255,0.8)", CYD + "0.55)", 0.012 * BPM, 0.38);
+      const sx = lerp(0, X.neck[0], clamp01((y - X.pelvis[1] - 0.03) / (X.neck[1] - X.pelvis[1] - 0.03))); // QA1: ribs follow the leaning spine
+      for (const sg of [-1, 1]) glowLine([[sx + 0.01 * sg, y], [sx + w * 0.7 * sg, y + 0.02], [sx + w * sg, y - 0.03], [sx + w * 0.85 * sg, y - 0.08]], "rgba(235,255,255,0.8)", CYD + "0.55)", 0.012 * BPM, 0.38);
     }
     // ---- nerve ----
     const NP = nervePath(X), MP = mouthPath(X), c = this.calm(t);
@@ -601,9 +602,10 @@ export class Props {
         const vx = F.R[0] * d.v[0] + F.N[0] * d.v[2], vz = F.R[2] * d.v[0] + F.N[2] * d.v[2];
         const tt = Math.max(0, s - d.d), tl = (d.v[1] + Math.sqrt(d.v[1] * d.v[1] + 2 * G * rim[1])) / G;
         const flying = s >= d.d && tt < tl;
-        dm.visible = flying;
+        const melt = id === 2 ? 1 - smooth((t - shotStart(2)) / 0.4) : 1; // QA1: frozen drops read as black blobs in the X-ray: shrink away
+        dm.visible = flying && melt > 0.02;
         if (flying) {
-          const vy = d.v[1] - G * tt, sp = Math.hypot(vx, vy, vz), grow = smooth(tt / 0.06);
+          const vy = d.v[1] - G * tt, sp = Math.hypot(vx, vy, vz), grow = smooth(tt / 0.06) * melt;
           dm.position.set(rim[0] + vx * tt, rim[1] + d.v[1] * tt - 0.5 * G * tt * tt, rim[2] + vz * tt);
           dm.lookAt(dm.position.x + vx, dm.position.y + vy, dm.position.z + vz); dm.rotateX(Math.PI / 2);
           dm.scale.set(d.r * grow, d.r * grow * (1 + 0.12 * sp), d.r * grow);
@@ -667,7 +669,7 @@ export class Props {
         if (D > 2 && u > cyc) { wave = Math.floor(u / cyc); u = u % cyc; }
         if (u < 0 || u > life || c.since > D + 0.1) return;
         const r = rng(i * 13 + Math.floor(c.t0 * 7) + wave * 3);
-        const side = i % 2 ? 1 : -1, an = side * (0.25 + r() * 1.1);
+        const side = i % 2 ? 1 : -1, an = side * (who === "swearer" ? 0.95 + r() * 0.7 : 0.25 + r() * 1.1); // swearer: burst out sideways, off the eyes
         const e = 1 - Math.pow(1 - u / life, 2), dist = bw * (0.3 + 0.55 * e);
         const dx = Math.sin(an) * dist + side * bw * 0.22, dy = Math.cos(an) * dist * 0.75 + bh * 0.2 - 0.06 * u * u;
         gs.visible = true;

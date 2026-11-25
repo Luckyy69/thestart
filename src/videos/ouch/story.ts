@@ -77,7 +77,7 @@ export const stubAt = (id: number, t: number) => {
   return { x: walkX, walking: t < hit ? 1 : 0, hit: t >= hit ? 1 : 0, hopping: id === 1 && t >= hit ? 1 : 0, since: t - hit };
 };
 /** X-ray pain signal (shot 2): 0 at the toe -> 1 at the brain */
-export const signalAt = (id: number, t: number) => (id === 2 ? { show: smooth((t - (W.pain - 0.3)) / 0.4), p: smooth((t - W.races) / (W.split + 0.4 - W.races)), brain: smooth((t - (W.split + 0.35)) / 0.25), mouth: smooth((t - (W.mouth - 0.1)) / 0.3) } : { show: 0, p: 0, brain: 0, mouth: 0 });
+export const signalAt = (id: number, t: number) => (id === 2 ? { show: smooth((t - Math.max(W.pain - 0.3, SHOTS[1].a / FPS)) / 0.4), p: smooth((t - W.races) / (W.split + 0.4 - W.races)), brain: smooth((t - (W.split + 0.35)) / 0.25), mouth: smooth((t - (W.mouth - 0.1)) / 0.3) } : { show: 0, p: 0, brain: 0, mouth: 0 });
 /** tiny planet (shot 3): which country speaks (stub + bubble) */
 export const COUNTRIES: { key: string; word: string; t: number; lon: number }[] = [
   { key: "uk", word: "OW!", t: W.ow1, lon: 0 }, { key: "fr", word: "AÏE!", t: W.aie, lon: 90 },
@@ -139,7 +139,7 @@ const orbit = (ws: OW[]) => (f: number): Cam => {
   return { pos: sph(m(1), m(2) + 6 * arc, m(3) + 3 * arc), look: lerp3(A[4], B[4], u), fov: m(5) + 6 * arc, roll: 0 };
 };
 /** a planet person's close-up: globe.ts countryCam(lon, 28, 13) position, aimed a little below the person so they sit high */
-const cLook = (lon: number) => sph(lon, 42.5, 6.6);
+const cLook = (lon: number) => sph(lon, 43.2, 7.5); // QA1: aim higher so the bubble fits above the person
 const cOW = (f: number, lon: number, o?: { ease?: Ease }): OW => [f, lon, 28, 13, cLook(lon), 22, o];
 const FULL_LOOK: V3 = [GLOBE[0], GLOBE[1] - 7.4, GLOBE[2]]; // full planet: pos (3008,4,28) = lon 15.9, lat 19, dist 30.8
 const FULL_LON = 360 + (Math.atan2(8, 28) * 180) / Math.PI, FULL_LAT = (Math.asin(10 / Math.hypot(8, 10, 28)) * 180) / Math.PI, FULL_D = Math.hypot(8, 10, 28);
@@ -150,10 +150,10 @@ const H_FULL: [V3, V3] = [Ho(0.12, 1.05, 4.2), Ho(0.1, 0.86, 0)];      // BEAN h
 const H_FAST: [V3, V3] = [Ho(0.02, 1.2, 3.4), Ho(0.0, 0.98, 0)];
 const H_FAINT: [V3, V3] = [Ho(-0.12, 1.08, 4.15), Ho(0.0, 0.88, 0)];
 const X_PATH: [V3, V3] = [Ho(0.6, 1.25, 4.25), Ho(-0.05, 1.0, 0)];      // x-ray: whole body, toe -> brain path
-const X_HEAD: [V3, V3] = [Ho(0.15, 1.45, 2.85), Ho(-0.12, 1.2, 0)];
+const X_HEAD: [V3, V3] = [Ho(0.05, 1.5, 2.85), Ho(-0.2, 1.27, 0)]; // QA1: headroom + the whole head in frame
 const X_OW: [V3, V3] = [Ho(-0.6, 1.25, 4.15), Ho(-0.05, 1.0, 0)];
-const X_LESS: [V3, V3] = [Ho(-0.35, 1.45, 2.95), Ho(-0.14, 1.2, 0)];
-const BRAIN: V3 = Ho(-0.32, 1.47, 0.07); // props brainPos(2, t) at the end of shot 2
+const X_LESS: [V3, V3] = [Ho(-0.42, 1.5, 2.95), Ho(-0.24, 1.27, 0)];
+const BRAIN: V3 = Ho(-0.34, 1.468, 0.055); // props brainPos(2, t) at the end of shot 2
 const BRAIN_IN: V3 = lerp3(BRAIN, X_LESS[0], 0.66 / Math.hypot(X_LESS[0][0] - BRAIN[0], X_LESS[0][1] - BRAIN[1], X_LESS[0][2] - BRAIN[2]));
 const L_WIDE: [V3, V3] = [La(0, 2.05, 5.2), La(0, 1.4, -0.6)];
 const L_SCI: [V3, V3] = [La(0.05, 1.5, 1.85), La(0, 1.22, -0.75)];
@@ -162,10 +162,12 @@ const L_VOLA: [V3, V3] = [La(-0.72, 1.45, 1.95), La(-0.82, 1.2, -0.34)];
 const L_VOLB: [V3, V3] = [La(0.72, 1.45, 1.95), La(0.82, 1.2, -0.34)];
 const L_SCREEN: [V3, V3] = [La(0, 2.6, 3.75), La(0, 1.82, -1.575)];
 const L_YOU: [V3, V3] = [La(-0.5, 1.45, 3.0), La(-0.5, 1.15, -0.5)];
-const L_STRONG: [V3, V3] = [La(2.3, 1.5, 2.0), La(0.98, 1.2, -0.62)];
-const L_MEME: [V3, V3] = [La(0.8, 1.42, 1.72), La(0.85, 1.24, -0.31)];
+const L_STRONG: [V3, V3] = [La(2.3, 1.5, 2.0), La(1.12, 1.22, -0.68)]; // QA2: centre the new scientist + his raised hand
+const L_MEME: [V3, V3] = [La(0.8, 1.5, 1.9), La(0.85, 1.33, -0.31)]; // pulled back: the whole meme head + hair spikes
+const L_SCREEN6: [V3, V3] = [La(0.18, 2.55, 3.95), La(0.12, 1.78, -1.575)]; // screen + the whole swearer
+const L_SAIL: [V3, V3] = [La(0.45, 2.85, 4.3), La(0.1, 1.62, -1.575)]; // "less of a boost": sailor + the whole screen
 const L_FOUCH: [V3, V3] = [La(-0.55, 1.5, 2.05), La(-0.68, 1.27, -0.34)];
-const L_FAKE: [V3, V3] = [La(-0.35, 1.9, 3.3), La(-0.4, 1.5, -1.0)];
+const L_FAKE: [V3, V3] = [La(-0.12, 2.7, 4.3), La(-0.1, 1.68, -1.575)]; // high + wide: the whole score screen, over the FOUCH head
 const H_END: [V3, V3] = [Ho(0.1, 1.08, 3.85), Ho(0.1, 0.9, 0)];
 const H_IN: [V3, V3] = [Ho(-0.55, 1.12, 3.9), Ho(-0.6, 0.9, 0)];
 const hold = (f0: number, f1: number, F: [V3, V3], fov: number, o?: { ease?: Ease }): WP[] => [[f0, F[0], F[1], fov, o], [f1, F[0], F[1], fov]];
@@ -179,8 +181,8 @@ const CAMS: Record<number, (f: number) => Cam> = {
   4: path([...hold(1000, 1018, L_WIDE, 44), ...hold(1058, 1088, L_SCI, 40), ...hold(1132, 1180, L_ICE, 46), ...hold(1222, 1242, L_VOLA, 38),
     ...hold(1278, 1302, L_SCREEN, 44), ...hold(1340, 1404, L_VOLB, 38), ...hold(1432, 1460, L_YOU, 40)]),
   5: path([...hold(1460, 1470, L_YOU, 40), ...hold(1508, 1524, L_STRONG, 40), ...hold(1542, 1545, L_MEME, 38)]),
-  6: path([...hold(1542, 1588, L_MEME, 38), ...hold(1620, 1660, L_SCREEN, 44)]),
-  7: path([...hold(1660, 1700, L_FOUCH, 38), ...hold(1724, 1766, L_FAKE, 40), ...hold(1800, 1865, L_VOLB, 38)]),
+  6: path([...hold(1542, 1588, L_MEME, 38), ...hold(1620, 1660, L_SCREEN6, 44)]),
+  7: path([...hold(1660, 1700, L_FOUCH, 38), ...hold(1724, 1766, L_FAKE, 46), ...hold(1790, 1818, L_VOLB, 38), ...hold(1840, 1865, L_SAIL, 46)]),
   8: path([[1865, ...H_IN, 40], ...hold(1897, 1995, H_END, 40)]),
 };
 /** whip-pans: [boundary frame (= incoming shot's a), axis, degrees, roll]. The outgoing camera accelerates into the turn over
