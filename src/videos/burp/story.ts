@@ -115,16 +115,47 @@ const shot = (id: number, ws: WP[]): Key[] => {
 };
 // first-pass framing (the cam owner rewrites this): BEAN floats at STATION+(0,1.15,0); Earth chair EARTH+(0,0,0);
 // crew at MIDDECK+(-0.9|0|0.9, 1.1, 0); Newman along STATION x NEWMAN_X0..X1 at y 1.2.
+// shot 8: between the "Hard." hold and the "gravity" hold the camera rides alongside Newman (x locked a little ahead of
+// his chest) between the holds, easing out of / into each; y / z / fov keep the waypoint glide
+const track8 = (ks: Key[]): Key[] => ks.map((k) => {
+  const w = k.f > 1258 && k.f < 1360 ? smooth((k.f - 1258) / 16) * (1 - smooth((k.f - 1332) / 28))
+    : k.f > 1376 && k.f < 1442 ? smooth((k.f - 1376) / 14) * (1 - smooth((k.f - 1416) / 26)) : 0;
+  if (w === 0) return k;
+  const nx = STATION[0] + newmanAt(8, k.f / FPS).x + (k.f < 1368 ? 0.45 : -0.2); // 2nd ride: lens a touch wider + framed back so the trailing X-ray (gas up) stays in
+  const lx = k.look[0] + (nx - k.look[0]) * w, dx = lx - k.look[0];
+  return { ...k, pos: [k.pos[0] + dx, k.pos[1], k.pos[2]], look: [lx, k.look[1], k.look[2]], fov: k.fov! + (k.f > 1368 ? 8 * w : 0) };
+});
 const CAMS: Record<number, Key[]> = {
-  1: shot(1, [[0, St(-3.2, 1.3, 1.9), St(0, 1.2, 0), 38], [22, St(-1.0, 1.3, 2.4), St(0, 1.2, 0), 34], [96, St(-0.9, 1.3, 2.3), St(0, 1.22, 0), 34]]),
-  2: shot(2, [[96, Ea(4, 1.6, 7), Ea(0, 0.9, 0), 36], [150, Ea(1.2, 1.2, 3.4), Ea(0, 0.95, 0), 34], [270, Ea(1.1, 1.2, 3.2), Ea(0, 0.95, 0), 34]]),
-  3: shot(3, [[270, St(2.5, 1.4, 2.0), St(0, 1.2, 0), 36], [330, St(0.6, 1.3, 2.2), St(0, 1.15, 0), 34], [430, St(0.6, 1.3, 2.2), St(0, 1.15, 0), 34], [480, St(0.3, 1.35, 1.6), St(0, 1.3, 0), 30], [600, St(0.3, 1.35, 1.6), St(0, 1.3, 0), 30]]),
-  4: shot(4, [[600, Or(-6, 1, 14), Or(0, 0, 0), 36], [660, Or(-1, 0.5, 6), Or(0, 0, 0), 34], [700, Or(-1, 0.5, 6), Or(0, 0, 0), 34]]),
-  5: shot(5, [[700, Or(80, 30, 140), Or(100, 0, 0), 40], [800, Or(85, 12, 60), Or(100, 0, 0), 38], [870, Or(85, 12, 60), Or(100, 0, 0), 38]]),
-  6: shot(6, [[870, Md(0, 1.4, 4.2), Md(0, 1.1, 0), 40], [930, Md(0, 1.3, 3.2), Md(0, 1.15, 0), 38], [1010, Md(0, 1.3, 3.2), Md(0, 1.15, 0), 38]]),
-  7: shot(7, [[1010, Md(0, 1.3, 2.4), Md(0, 1.2, 0), 36], [1135, Md(0, 1.3, 2.4), Md(0, 1.2, 0), 36]]),
-  8: shot(8, [[1135, St(-2.5, 1.4, 2.0), St(-5.0, 1.2, 0), 38], [1250, St(-3.0, 1.4, 1.8), St(-5.0, 1.2, 0), 36], [1420, St(1.5, 1.4, 1.9), St(3.0, 1.2, 0), 38], [1525, St(2.2, 1.35, 1.7), St(3.6, 1.25, 0), 34]]),
-  9: shot(9, [[1525, Or(-200, 0, 10), Or(-200, 0, 0), 40], [1620, Or(-215, 10, 45), Or(-200, 0, 0), 40], [1725, Or(-215, 10, 45), Or(-200, 0, 0), 40]]),
+  // HOOK: already moving on frame 0 (the glide began off-screen at -14): low dutch angle -> crane up + dolly in, LAND on
+  // BEAN with Earth in the window beside him for "burp" (26); push to his face, LAND for "Can't." (73)
+  1: shot(1, [[-14, St(-2.8, 1.35, 2.75), St(0.25, 1.24, 0), 38, 0.04], [22, St(-1.75, 1.3, 2.55), St(0.12, 1.2, 0), 34], [40, St(-1.75, 1.3, 2.55), St(0.12, 1.2, 0), 34],
+    [64, St(-1.4, 1.5, 2.1), St(0.14, 1.42, 0), 32], [96, St(-1.4, 1.5, 2.1), St(0.14, 1.42, 0), 32]]),
+  // golden backyard: crane down from the wide, LAND on BEAN + hologram + can (gas up / food down), push in, LAND "Burp." (253)
+  2: shot(2, [[92, Ea(4.6, 2.7, 8.6), Ea(0.3, 0.75, 0), 36], [150, Ea(0.3, 1.4, 3.5), Ea(0.22, 0.48, 0.1), 42], [192, Ea(0.3, 1.4, 3.5), Ea(0.22, 0.48, 0.1), 42],
+    [236, Ea(0.3, 1.3, 3.0), Ea(0.22, 0.54, 0.1), 40], [270, Ea(0.3, 1.3, 3.0), Ea(0.22, 0.54, 0.1), 40]]),
+  // back in space: dolly in from the module wide, LAND on BEAN + hologram for "soup" (400); orbit round to his face, LAND "wet burp" (578)
+  3: shot(3, [[266, St(3.4, 1.75, 3.6), St(0.7, 1.3, 0), 38], [338, St(1.15, 1.3, 3.3), St(0.26, 1.12, 0), 38], [430, St(1.15, 1.3, 3.3), St(0.26, 1.12, 0), 38],
+    [540, St(-0.95, 1.45, 2.4), St(0.05, 1.38, 0), 34], [600, St(-0.95, 1.45, 2.4), St(0.05, 1.38, 0), 34]]),
+  // the cans glide into the spotlight: crane down + dolly in, LAND for "space" (669)
+  4: shot(4, [[600, Or(-4.2, 1.8, 11.5), Or(0, 0.2, 0), 36], [655, Or(-1.0, 0.3, 5.6), Or(0, -0.35, 0), 34], [700, Or(-1.0, 0.3, 5.6), Or(0, -0.35, 0), 34]]),
+  // the orbiter over the curved Earth: long glide in from deep space, LAND on the whole shuttle for "Challenger" (836)
+  5: shot(5, [[700, Or(0, 80, 260), Or(98, -10, 0), 40], [815, Or(50, 34, 92), Or(97, -7, 0), 38], [870, Or(50, 34, 92), Or(97, -7, 0), 38]]),
+  // middeck: dolly in to the three crew, LAND for the "sip" (920); push to the centre face, LAND for "go" (980); then
+  // ease in to the centre man for the peak
+  6: shot(6, [[870, Md(1.2, 1.5, 5.0), Md(0, 1.05, 0), 40], [912, Md(0.45, 1.42, 3.65), Md(0, 1.14, 0), 40], [945, Md(0.45, 1.42, 3.65), Md(0, 1.14, 0), 40],
+    [968, Md(0.3, 1.45, 3.2), Md(0, 1.12, 0), 38], [990, Md(0.3, 1.45, 3.2), Md(0, 1.12, 0), 38], [1010, Md(0.15, 1.48, 2.5), Md(0, 1.32, 0), 36]]),
+  // PEAK (no visible cut, the room turns green): held on THE MEME FACE for "Wet." (1013), a short push, LAND "Burps." (1046);
+  // ease back with the menu in the foreground, LAND for "menu" (1120)
+  7: shot(7, [[1010, Md(0.15, 1.48, 2.5), Md(0, 1.32, 0), 36], [1024, Md(0.15, 1.48, 2.5), Md(0, 1.32, 0), 36], [1040, Md(0.1, 1.52, 2.25), Md(0, 1.42, 0), 36],
+    [1064, Md(0.1, 1.52, 2.25), Md(0, 1.42, 0), 36], [1100, Md(0.3, 1.58, 2.8), Md(0.02, 1.24, 0.5), 36], [1135, Md(0.3, 1.58, 2.8), Md(0.02, 1.24, 0.5), 36]]),
+  // TWIST: from the golden window, dolly to Newman braced at the push wall, LAND "Hard." (1258); track with his flight,
+  // LAND as he sails past the sunrise window for "gravity" (1367); drift to the catch bar, LAND "perfect burp" (1499)
+  8: track8(shot(8, [[1135, St(0.8, 1.5, 3.4), St(1.5, 1.3, -1.0), 38], [1215, St(-4.3, 1.35, 3.7), St(-4.75, 1.05, 0), 40], [1258, St(-4.3, 1.35, 3.7), St(-4.75, 1.05, 0), 40],
+    [1360, St(1.8, 1.25, 3.25), St(1.95, 1.1, 0), 38], [1376, St(1.8, 1.25, 3.25), St(1.95, 1.1, 0), 38],
+    [1442, St(3.25, 1.4, 3.3), St(3.38, 1.15, 0), 40], [1525, St(3.25, 1.4, 3.3), St(3.38, 1.15, 0), 40]])),
+  // OUTRO: sunrise over the limb, travel in from the wide to the lit cupola window, LAND "wall to burp" (1638), drift out
+  9: shot(9, [[1525, Or(-178, 14, 62), Or(-200, -2, 0), 40], [1612, Or(-198.9, 1.2, 9.0), Or(-200, -0.45, 2), 36], [1665, Or(-198.9, 1.2, 9.0), Or(-200, -0.45, 2), 36],
+    [1725, Or(-192, 4.5, 26), Or(-200, -2.2, 1), 40]]),
 };
 const KICKS: [number, number][] = [];
 export const camAt = (id: number, f: number): Cam => {
@@ -149,7 +180,7 @@ export const camAt = (id: number, f: number): Cam => {
   return c;
 };
 // mild lens blur only (backgrounds stay readable): [frame, cInf, focus?]
-const DOFK: [number, number, V3?][] = [[0, 2], [96, 2], [270, 2], [600, 1], [700, 0], [870, 2], [1010, 2], [1135, 2], [1525, 0]];
+const DOFK: [number, number, V3?][] = [[0, 1.2], [96, 0], [270, 1.0], [600, 0], [870, 0.8], [1010, 1.4], [1135, 0.8], [1525, 0]];
 export const dofAt = (f: number): { cInf: number; focus?: (f: number) => V3 } => {
   let e: [number, number, V3?] = DOFK[0];
   for (const d of DOFK) if (f >= d[0]) e = d;
