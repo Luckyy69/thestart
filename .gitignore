@@ -6,3 +6,4 @@ src/sandboxes/
 *.mp3
 *.wav
 .cache/
+deliver/
