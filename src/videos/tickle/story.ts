@@ -47,7 +47,7 @@ export const SHOTS: ShotDef[] = [
   { id: 6, a: 1290, b: 1370, look: "xray", place: "lab", light: "day" },    // X-RAY in the lab: his brain panting + sweating, a "LOADING..." spinner: "couldn't keep up" (44.01)
   { id: 7, a: 1370, b: 1530, look: "morning", place: "home", light: "golden" }, // OUTRO: BEAN at home in the armchair; a tiny, very slow robot creeps up and (on "slow" 48.34) tickles him: a happy giggle; hold
 ];
-export const XFADE: Record<number, number> = { 3: 8, 4: 6, 6: 6, 7: 8 };
+export const XFADE: Record<number, number> = { 3: 12, 4: 6, 5: 8, 6: 6, 7: 8 }; // dissolves (cam owner): 3 brain push -> whiteboard brain, 4 + 6 continuous softeners, 5 + 7 whip-pans
 /** smooth light turns: [fromLook, toLook, f0, f1, place] */
 export const LOOK_RAMPS: [Look, Look, number, number, Place][] = [
   ["morning", "xray", 252, 270, "home"], ["lab", "peak", 1107, 1160, "lab"], ["peak", "xray", 1287, 1300, "lab"],
@@ -83,48 +83,122 @@ export const robotAt = (id: number, t: number) => {
 export const slowBotAt = (id: number, t: number) => (id === 7 ? { creep: smooth((t - shotStart(7)) / (W.slow - shotStart(7))), tickle: smooth((t - (W.slow - 0.1)) / 0.3) } : { creep: 0, tickle: 0 });
 
 // ---------------- camera ----------------
+// CAMERA (cam owner). Rule 2: very few cuts; TRAVEL, LAND, then the key word is said while the camera is STILL.
+// Each shot is a path of waypoints [frame, pos, look, fov, opts]; hold() = two identical waypoints (a still landing).
+// Waypoints may lie outside the shot's [a, b] so the camera keeps moving through the XFADE dissolves.
+// Transitions: 1->2 one continuous camera (the room dims to x-ray) | 2->3 push INTO the glowing hologram brain, dissolve,
+//   come OUT of the brain drawn on the lab whiteboard and crane back over the table to the reveal | 3->4 continuous |
+//   4->5 whip-pan left off the DELAY dial onto BEAN | 5->6 continuous (x-ray dissolve) | 6->7 whip-pan right, home.
 export type Cam = { pos: V3; look: V3; fov: number; roll: number };
-type Key = { f: number; pos: V3; look: V3; fov?: number; roll?: number; cut?: boolean; lin?: boolean };
-const P = (f: number, pos: V3, look: V3, fov = 40, roll = 0): Key => ({ f, pos, look, fov, roll, lin: true });
+type Ease = "io" | "in" | "in2" | "out";
+type WP = [number, V3, V3, number, { ease?: Ease; roll?: number; via?: V3[] }?];
 const at = (o: V3) => (x: number, y: number, z: number): V3 => [o[0] + x, o[1] + y, o[2] + z];
 const Ho = at(HOME), La = at(LAB);
-// CAMERA (cam owner). Each shot = a few waypoints [frame, pos, look, fov, roll?]: TRAVEL between them with glide(), then
-// HOLD still (two waypoints with the same values) through the important word. Tiny drift only while travelling.
-type WP = [number, V3, V3, number, number?];
 const lerp3 = (a: V3, b: V3, u: number): V3 => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
-const shot = (id: number, ws: WP[]): Key[] => {
-  const { a, b } = SHOTS[id - 1], out: Key[] = [];
-  const fn = (f: number) => {
-    let i = 0;
-    while (i < ws.length - 2 && f >= ws[i + 1][0]) i++;
-    const A = ws[i], B = ws[Math.min(i + 1, ws.length - 1)];
-    const u = B[0] === A[0] ? 0 : glide((f - A[0]) / (B[0] - A[0]));
-    return P(f, lerp3(A[1], B[1], u), lerp3(A[2], B[2], u), A[3] + (B[3] - A[3]) * u, (A[4] ?? 0) + ((B[4] ?? 0) - (A[4] ?? 0)) * u);
-  };
-  for (let f = a; ; f += 2) { const g = Math.min(f, b); out.push(fn(g)); if (g >= b) break; }
-  return out;
+const ease = (e: Ease | undefined, x: number) => { const u = clamp01(x); return e === "in" ? u * u * u : e === "in2" ? u * u : e === "out" ? 1 - (1 - u) ** 3 : glide(u); };
+/** Catmull-Rom through pts at u 0..1 (pass-through crane moves that never stop at the via points) */
+const spline = (pts: V3[], u: number): V3 => {
+  const n = pts.length - 1, s = clamp01(u) * n, i = Math.min(n - 1, Math.floor(s)), x = s - i;
+  const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(n, i + 2)];
+  const c = (k: 0 | 1 | 2) => 0.5 * (2 * p1[k] + (-p0[k] + p2[k]) * x + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * x * x + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * x * x * x);
+  return [c(0), c(1), c(2)];
 };
-// first-pass framing (the cam owner rewrites this)
-const CAMS: Record<number, Key[]> = {
-  1: shot(1, [[0, Ho(-0.4, 1.3, 3.0), Ho(0, 1.0, 0), 38], [60, Ho(-0.2, 1.25, 2.5), Ho(0, 1.05, 0), 34], [255, Ho(-0.1, 1.3, 2.3), Ho(0, 1.1, 0), 32]]),
-  2: shot(2, [[255, Ho(-0.1, 1.3, 2.3), Ho(0, 1.1, 0), 32], [380, Ho(0.2, 1.55, 1.6), Ho(0, 1.45, 0), 30], [660, Ho(0.1, 1.4, 2.0), Ho(0, 1.2, 0), 32]]),
-  3: shot(3, [[660, La(0, 1.6, 4.2), La(0, 1.1, 0), 40], [790, La(0, 1.4, 3.0), La(0, 1.0, 0), 36]]),
-  4: shot(4, [[790, La(0.2, 1.4, 2.8), La(0, 1.0, 0), 36], [1110, La(0.2, 1.4, 2.6), La(0, 1.05, 0), 34]]),
-  5: shot(5, [[1110, La(0, 1.4, 2.2), La(0, 1.2, 0), 32], [1290, La(0, 1.4, 2.0), La(0, 1.25, 0), 30]]),
-  6: shot(6, [[1290, La(0, 1.5, 1.8), La(0, 1.45, 0), 30], [1370, La(0, 1.5, 1.7), La(0, 1.45, 0), 30]]),
-  7: shot(7, [[1370, Ho(-1.0, 1.3, 2.6), Ho(-1.6, 0.8, -0.3), 38], [1530, Ho(-1.2, 1.2, 2.2), Ho(-1.6, 0.8, -0.3), 34]]),
+const path = (ws: WP[]) => (f: number): Cam => {
+  if (f <= ws[0][0]) return { pos: ws[0][1], look: ws[0][2], fov: ws[0][3], roll: ws[0][4]?.roll ?? 0 };
+  let i = 0;
+  while (i < ws.length - 2 && f >= ws[i + 1][0]) i++;
+  const A = ws[i], B = ws[i + 1], u = ease(B[4]?.ease, (f - A[0]) / (B[0] - A[0]));
+  const pos = B[4]?.via ? spline([A[1], ...B[4].via, B[1]], u) : lerp3(A[1], B[1], u);
+  return { pos, look: lerp3(A[2], B[2], u), fov: A[3] + (B[3] - A[3]) * u, roll: (A[4]?.roll ?? 0) + ((B[4]?.roll ?? 0) - (A[4]?.roll ?? 0)) * u };
 };
+type F = [V3, V3];
+/** a framing: the world span y0..y1 at (x, z) fills the frame above the caption band (bottom 22 %) with ~8 % headroom;
+ *  az = degrees round the subject (+ = camera to screen right), el = camera rise per metre of distance (looks down),
+ *  wmin = the minimum frame WIDTH (m) at the subject (the 9:16 frame is narrow: BEAN's head + hair is ~0.8 m wide). */
+const fr = (o: (x: number, y: number, z: number) => V3, x: number, z: number, y0: number, y1: number, fov: number, az = 0, el = 0.06, wmin = 0): F => {
+  const H = Math.max((y1 - y0) / 0.68, wmin / 0.5625), top = y1 + 0.08 * H, ly = top - H / 2, d = H / (2 * Math.tan((fov * Math.PI) / 360)), a = (az * Math.PI) / 180;
+  return [o(x + d * Math.sin(a), ly + d * el, z + d * Math.cos(a)), o(x, ly, z)];
+};
+const hold = (f0: number, f1: number, Fr: F, fov: number, o?: { ease?: Ease; via?: V3[] }): WP[] => [[f0, Fr[0], Fr[1], fov, o], [f1, Fr[0], Fr[1], fov]];
+const key = (f: number, Fr: F, fov: number, o?: { ease?: Ease; via?: V3[] }): WP => [f, Fr[0], Fr[1], fov, o];
+
+// ---- HOME (shots 1-2): BEAN stands at H+(0,0,0), head H+(0,1.458,0), hair/antenna top ~2.05 ----
+const HY = 1.458;
+const H_OPEN = fr(Ho, 0.05, 0, 0.35, 2.05, 40, -16, 0.1);   // frame 0: wider, off-axis, already gliding in
+const H_HOOK = fr(Ho, 0, 0, 0.62, 2.05, 36, -5);           // "tickle yourself" (22): fingers at the ribs + stone face
+const H_WAIT = fr(Ho, 0.02, 0, 0.72, 2.02, 34, 9);          // "I'll wait" (84)
+const H_SHRUG = fr(Ho, 0, 0, 0.42, 2.06, 36, -3);           // "Nothing, right?" (138): the shrug
+const H_BRAIN = fr(Ho, 0.04, 0, HY - 0.36, HY + 0.72, 32, 2, 0.06, 1.25); // "brain" (227) + x-ray open: head, hologram, thought card
+const X_CEREB = fr(Ho, -0.1, 0, HY - 0.3, HY + 0.5, 30, -12, 0.06, 1.08); // "cerebellum" (334): the gold lobe + label
+const X_KNOB = fr(Ho, 0.02, 0, HY - 0.3, HY + 0.76, 32, 10, 0.06, 1.05);  // "down" (468): the volume knob on the thought card
+const X_RIBS = fr(Ho, 0, 0, 0.72, HY + 0.74, 36, -4);       // "ribs" (547) + "knows" (583): fingers at the ribs + SEEN IT
+const X_NO = fr(Ho, -0.03, 0, HY - 0.33, HY + 0.7, 31, 0, 0.06, 0.98);  // "No tickle" (648): deadpan + smug brain
+const BRAIN_C: V3 = Ho(-0.01, HY + 0.12, 0.14);                // the hologram brain centre (brain.ts LAYOUT.brain, HOLO_D)
+const BRAIN_IN: V3 = Ho(0.0, HY + 0.13, 0.9);                  // end of the push: 0.75 m from the hologram, fov 36
+
+// ---- LAB (shots 3-6): BEAN on the stool L+(0,0,0.55), head ~L+(0,1.30,0.55); rig on the table (top 0.78) ----
+const LY = 1.3;
+const BOARD_BRAIN: V3 = La(-0.56, 1.64, -1.95);                 // the brain drawn on the whiteboard (sets.ts boardTex)
+const L_BOARD: F = [La(-0.53, 1.68, -0.66), BOARD_BRAIN];      // tight on the drawing (behind the scientists), fov 34
+const L_LONDON = fr(La, 0, -0.45, 0.25, 2.55, 40, 0, 0.16);    // "London" (700): the whole lab, sheet-covered rig
+const L_ROBOT = fr(La, 0.05, -0.15, 0.6, 2.2, 40, 16, 0.34, 1.95);       // "robot" (783): the sheet whips off, spotlight
+const L_HANDLE = fr(La, 0.22, 0.45, 0.62, 1.82, 34, 26, 0.16, 1.4);    // "handle" (820): his fist on the joystick + face
+const L_PALM = fr(La, -0.24, 0.45, 0.58, 1.82, 34, -26, 0.16, 1.4);    // "other hand" (901): foam tip on his palm
+const L_BARELY = fr(La, -0.02, 0.5, 0.7, 1.78, 32, 4, 0.1, 1.35);        // "barely" (963): bored face + both hands
+const L_DELAY = fr(La, 0.6, -0.32, 0.95, 2.05, 44, 52, 0.18, 1.25);   // "delay" (1031): SCI_B's hand on the dial
+const L_DIAL = fr(La, 0.52, -0.08, 1.0, 1.62, 30, 8, 0.06);      // "second" (1092): the dial + CRT "DELAY: 0.20 s"
+const L_FACE = fr(La, 0, 0.55, LY - 0.4, LY + 1.0, 34, -3, 0.05, 1.25); // "suddenly" (1134) + THE MEME FACE (1177) + HAHA bursts
+const L_MORE = fr(La, 0.22, 0.2, 0.6, LY + 1.0, 38, 12, 0.14, 1.75);       // "more" (1254): dial cranked, scientists amazed
+const L_XRAY = fr(La, -0.03, 0.55, LY - 0.36, LY + 0.74, 32, 0, 0.04, 1.08); // "keep up" (1320): panting brain + LOADING card
+
+// ---- HOME outro (shot 7): BEAN in the armchair (card H+(-1.6,0,0.15), head ~1.13); slow robot on the floor ----
+const O_CHAIR = fr(Ho, -1.5, 0.15, 0.25, 1.62, 36, -6, 0.08);    // whip lands: BEAN in the armchair
+const O_BOT = fr(Ho, -0.98, 0.42, -0.06, 0.62, 34, 8, 0.45, 1.05);        // "robot" (1417): tilt down to the creeping toy
+const O_END = fr(Ho, -1.36, 0.2, -0.24, 1.62, 38, 2, 0.18);     // "slow one" (1450) -> end: BEAN giggling + the robot
+
+const CAMS: Record<number, (f: number) => Cam> = {
+  1: path([key(0, H_OPEN, 40), ...hold(20, 50, H_HOOK, 36), ...hold(78, 102, H_WAIT, 34), ...hold(130, 168, H_SHRUG, 36),
+    ...hold(214, 262, H_BRAIN, 32)]),
+  2: path([...hold(214, 300, H_BRAIN, 32), ...hold(326, 350, X_CEREB, 30), ...hold(374, 424, H_BRAIN, 32), ...hold(458, 490, X_KNOB, 32),
+    ...hold(536, 606, X_RIBS, 36), ...hold(632, 652, X_NO, 31), [667, BRAIN_IN, BRAIN_C, 36, { ease: "in2" }]]),
+  3: path([[654, L_BOARD[0], L_BOARD[1], 34], [710, L_LONDON[0], L_LONDON[1], 40, { via: [La(-0.22, 2.2, -0.45), La(-0.02, 2.62, 1.5)] }],
+    [742, L_LONDON[0], L_LONDON[1], 40], ...hold(768, 800, L_ROBOT, 40)]),
+  4: path([...hold(768, 800, L_ROBOT, 40), ...hold(814, 860, L_HANDLE, 34), ...hold(890, 926, L_PALM, 34), ...hold(950, 990, L_BARELY, 32),
+    ...hold(1022, 1060, L_DELAY, 34), ...hold(1084, 1110, L_DIAL, 30)]),
+  5: path([...hold(1112, 1200, L_FACE, 34), ...hold(1240, 1296, L_MORE, 38)]),
+  6: path([...hold(1240, 1290, L_MORE, 38), ...hold(1312, 1370, L_XRAY, 32)]),
+  7: path([...hold(1370, 1398, O_CHAIR, 36), ...hold(1412, 1434, O_BOT, 36), ...hold(1448, 1530, O_END, 38)]),
+};
+/** whip-pans: [boundary frame (= incoming shot's a), axis, degrees (+yaw = pan left), roll]. The outgoing camera
+ *  accelerates into the turn over [B-6, B+4], the incoming one arrives already turning over [B-4, B+6]; XFADE blends. */
+const WHIPS: [number, "yaw" | "pitch", number, number][] = [[1110, "yaw", 70, -0.08], [1370, "yaw", -80, 0.1]];
+const whipOffset = (id: number, f: number): { yaw: number; pitch: number; roll: number } => {
+  const o = { yaw: 0, pitch: 0, roll: 0 };
+  for (const [B, axis, deg, rl] of WHIPS) {
+    const inc = SHOTS.find((s) => s.a === B)!.id;
+    let k = 0;
+    if (id === inc - 1 && f > B - 6) k = clamp01((f - (B - 6)) / 10) ** 2.4;
+    else if (id === inc && f < B + 6) k = -((1 - clamp01((f - (B - 4)) / 10)) ** 2.4);
+    if (!k) continue;
+    o[axis] += deg * k;
+    o.roll += rl * Math.sin(Math.PI * Math.abs(k)) * Math.sign(k || 1);
+  }
+  return o;
+};
+/** camera kicks: [frame, amplitude]. None: rule 2 wants the camera STILL on every key word (sheet + meme included). */
 const KICKS: [number, number][] = [];
 export const camAt = (id: number, f: number): Cam => {
-  const ks = CAMS[id];
-  let k0 = ks[0], k1 = ks[ks.length - 1];
-  for (let i = 0; i < ks.length - 1; i++) if (f >= ks[i].f && (f < ks[i + 1].f || i === ks.length - 2)) { k0 = ks[i]; k1 = ks[i + 1]; break; }
-  if (f < ks[0].f) k1 = k0;
-  if (k1.cut) k1 = k0;
-  const x = k1.f === k0.f ? 0 : clamp01((f - k0.f) / (k1.f - k0.f));
-  const u = k1.lin ? x : glide(x);
-  const m = (a: V3, b: V3) => a.map((v, i) => v + (b[i] - v) * u) as V3;
-  const c: Cam = { pos: m(k0.pos, k1.pos), look: m(k0.look, k1.look), fov: k0.fov! + (k1.fov! - k0.fov!) * u, roll: k0.roll! + (k1.roll! - k0.roll!) * u };
+  const c0 = CAMS[id](f), c: Cam = { pos: [...c0.pos] as V3, look: [...c0.look] as V3, fov: c0.fov, roll: c0.roll };
+  const w = whipOffset(id, f);
+  if (w.yaw || w.pitch) {
+    let dx = c.look[0] - c.pos[0], dy = c.look[1] - c.pos[1], dz = c.look[2] - c.pos[2];
+    const len = Math.hypot(dx, dy, dz), hz = Math.hypot(dx, dz);
+    let yaw = Math.atan2(dx, dz), pitch = Math.atan2(dy, hz);
+    yaw += (w.yaw * Math.PI) / 180; pitch = Math.max(-1.35, Math.min(1.35, pitch + (w.pitch * Math.PI) / 180));
+    dx = Math.sin(yaw) * Math.cos(pitch) * len; dz = Math.cos(yaw) * Math.cos(pitch) * len; dy = Math.sin(pitch) * len;
+    c.look = [c.pos[0] + dx, c.pos[1] + dy, c.pos[2] + dz];
+    c.roll += w.roll;
+  }
   for (const [kf, a] of KICKS) {
     const d = f - kf;
     if (d >= 0 && d < 10) {
@@ -137,7 +211,7 @@ export const camAt = (id: number, f: number): Cam => {
   return c;
 };
 // mild lens blur only (the user: backgrounds must NOT be blurry): [frame, cInf, focus?]
-const DOFK: [number, number, V3?][] = [[0, 1], [255, 1], [660, 0.6], [790, 1], [1110, 1.2], [1290, 1], [1370, 1]];
+const DOFK: [number, number, V3?][] = [[0, 0.9], [255, 0.9], [656, 0.7], [790, 0.9], [1110, 1.1], [1290, 0.9], [1370, 0.9]];
 export const dofAt = (f: number): { cInf: number; focus?: (f: number) => V3 } => {
   let e: [number, number, V3?] = DOFK[0];
   for (const d of DOFK) if (f >= d[0]) e = d;

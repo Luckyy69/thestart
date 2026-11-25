@@ -15,15 +15,15 @@
 //   HOME: floor y 0, back wall z -1.4, side walls x +-3.2, ceiling 2.75, open toward +z (floor to z 5.5).
 //     BIG WINDOW (back wall) x -2.5..-0.6, y 0.5..2.25 (3 x 4 panes); sun travels toward +x +z, low (~25 deg):
 //     the stripe pool runs from the armchair (-1.6, 0, -0.3) through BEAN's spot (0, 0, 0) toward the camera.
-//     ARMCHAIR centre (-1.6, 0, -0.3), yaw +0.18 (faces the camera, a touch to +x): seat cushion top y 0.47, seat area
-//       x -1.88..-1.32, z -0.45..0.1 (front edge z ~0.1); arm tops y 0.71 at local x +-0.38; back top y ~1.0 at z -0.68.
+//     ARMCHAIR centre (-1.6, 0, -0.36), yaw +0.18 (faces the camera, a touch to +x): seat cushion top y 0.44, seat area
+//       x -1.88..-1.32, z -0.5..0.05; whole front face behind z 0.13 (BEAN's card plane z 0.15); arm tops y 0.71 at local x +-0.38; back top y ~1.0 at z -0.68.
 //       Floor in front of it (z 0.15..1.2) is clear for the slow robot.
 //     Rug (oval) centre (-0.45, 0.35), 3.2 x 2.1, top y 0.014. Floor lamp (-2.62, 0, 0.12) shade y 1.45..1.76.
 //     TV cabinet x 0.7..2.0, z -1.38..-0.95, top y 0.56. Bookshelf x 2.15..3.15. Cat bed (1.35, 0, -0.55).
 //   LAB: floor y 0, back wall z -2.0, side walls x +-3.6, ceiling 3.0, open toward +z (floor to z 6.5).
 //     LAB TABLE top y 0.78 (= RIG y), x -0.92..0.92, z -0.46..0.46: the WHOLE TOP IS FREE for the robot (props).
-//     STOOL for BEAN at (0, 0, 0.55): seat top y 0.62, radius 0.18.
-//     SCIENTISTS stand behind the table at (-0.62, 0, -0.85) and (0.62, 0, -0.85) (floor free x -1.2..1.2, z -1.9..-0.5).
+//     STOOL for BEAN at (0, 0, 0.55): seat top y 0.60, radius 0.18.
+//     SCIENTISTS stand just behind the table at (-0.6, 0, -0.5) and (0.6, 0, -0.5) (floor free x -1.2..1.2, z -1.9..-0.47).
 //     WHITEBOARD (behind them) x -0.95..0.95, y 1.0..2.1 on the back wall. WINDOW with venetian blinds x -2.75..-1.25,
 //     y 1.0..2.4 (sun stripes fall across the table + BEAN). Computer desk x 1.2..3.3 (beige PCs, green CRT, binders).
 //     THEATRICAL SPOT: a can at (0, 2.82, 0.75) aimed at (0, 0.78, 0.1) (on in "reveal", warm; gold-pink in "peak").
@@ -781,7 +781,7 @@ const sc3 = (a: C3, k: number): C3 => [a[0] * k, a[1] * k, a[2] * k];
 // ============================================================ the HOME living room
 const HX = 3.2, HZ = -1.4, HY = 2.75, HZF = 5.5;
 const HWIN = { x0: -2.5, x1: -0.6, y0: 0.5, y1: 2.25 };
-const CHAIR = { x: -1.6, z: -0.3, yaw: 0.18 };
+const CHAIR = { x: -1.6, z: -0.36, yaw: 0.18 };
 type HomeRig = { au: C3; ad: C3; sun: C3; lamp: C3; lampEm: C3; bounce: C3; win: C3; fill: C3; warm: C3; view: number; haze: number; hazeC: C3; motes: number; tv: number };
 const HOME_RIGS: Partial<Record<Look, HomeRig>> = {
   morning: { au: [0.26, 0.3, 0.46], ad: [0.24, 0.16, 0.12], sun: [3.5, 2.15, 1.0], lamp: [0.9, 0.55, 0.24], lampEm: [2.6, 1.7, 0.8], bounce: [0.42, 0.25, 0.11], win: [0.45, 0.38, 0.36], fill: [0.22, 0.24, 0.36], warm: [0.3, 0.17, 0.08], view: 1.02, haze: 0.22, hazeC: [1.0, 0.7, 0.38], motes: 1.3, tv: 1 },
@@ -869,7 +869,7 @@ class Home {
       const M = (x: number, y: number, z: number, ry = 0, rx = 0, rz = 0, s: number | C3 = 1) => TRS(x, y, z, ry, rx, rz, s).premultiply(CM);
       const RED = "#c4482e", REDD = "#a63a24";
       fu.rbox(plain, 0.86, 0.3, 0.8, 0.1, M(0, 0.25, -0.02), REDD, 4);
-      fu.rbox(plain, 0.6, 0.15, 0.62, 0.07, M(0, 0.395, 0.06), RED, 4);
+      fu.rbox(plain, 0.6, 0.15, 0.62, 0.07, M(0, 0.365, 0.06), RED, 4); // seat top y 0.44
       fu.rbox(plain, 0.8, 0.66, 0.24, 0.12, M(0, 0.68, -0.32, 0, -0.14), RED, 4);
       for (const s of [-1, 1]) {
         fu.rbox(plain, 0.18, 0.34, 0.78, 0.09, M(s * 0.38, 0.5, 0.0), RED, 4);
@@ -1226,10 +1226,10 @@ class Lab {
     // ---- BEAN's STOOL at (0, 0, 0.55): red vinyl seat top y 0.62, chrome legs + foot ring ----
     {
       const sx = 0, sz = 0.55;
-      fu.cyl(plain, 0.18, 0.17, 0.06, 36, TRS(sx, 0.59, sz), "#c8302a");
-      fu.torus(gloss, 0.176, 0.012, TRS(sx, 0.596, sz, 0, Math.PI / 2), "#a02418");
-      fu.cyl(metal, 0.15, 0.15, 0.02, 30, TRS(sx, 0.55, sz), "#c8ccd2");
-      for (let k = 0; k < 4; k++) { const a = (k / 4) * Math.PI * 2 + Math.PI / 4; fu.rod(metal, V3(sx + Math.cos(a) * 0.11, 0.55, sz + Math.sin(a) * 0.11), V3(sx + Math.cos(a) * 0.2, 0.015, sz + Math.sin(a) * 0.2), 0.013, 10, "#d8dce2"); fu.cyl(plain, 0.018, 0.018, 0.02, 10, TRS(sx + Math.cos(a) * 0.2, 0.01, sz + Math.sin(a) * 0.2), "#1a1a1a"); }
+      fu.cyl(plain, 0.18, 0.17, 0.06, 36, TRS(sx, 0.57, sz), "#c8302a"); // seat top y 0.60
+      fu.torus(gloss, 0.176, 0.012, TRS(sx, 0.576, sz, 0, Math.PI / 2), "#a02418");
+      fu.cyl(metal, 0.15, 0.15, 0.02, 30, TRS(sx, 0.53, sz), "#c8ccd2");
+      for (let k = 0; k < 4; k++) { const a = (k / 4) * Math.PI * 2 + Math.PI / 4; fu.rod(metal, V3(sx + Math.cos(a) * 0.11, 0.53, sz + Math.sin(a) * 0.11), V3(sx + Math.cos(a) * 0.2, 0.015, sz + Math.sin(a) * 0.2), 0.013, 10, "#d8dce2"); fu.cyl(plain, 0.018, 0.018, 0.02, 10, TRS(sx + Math.cos(a) * 0.2, 0.01, sz + Math.sin(a) * 0.2), "#1a1a1a"); }
       fu.torus(metal, 0.168, 0.01, TRS(sx, 0.24, sz, 0, Math.PI / 2), "#d8dce2");
     }
     // ---- side walls: notice board, posters, a rubber plant, a sink, a coat rack with a spare lab coat, a clock ----
