@@ -43,10 +43,10 @@ export const HOLO_D = 0.14;
  *  >= ~1.1 m tall (fov 30 -> >= 2.1 m away). */
 export const LAYOUT = {
   brain: { c: [0, 0.12] as P2, size: 0.6 },          // brain drawn 0.36 m wide (head-local y -0.03..0.26)
-  label: { c: [-0.16, -0.06] as P2, w: 0.44, h: 0.2 }, // gold pill "CEREBELLUM" centred at PILL (shot 2 only)
+  label: { c: [-0.2, -0.08] as P2, w: 0.44, h: 0.24 }, // gold pill "CEREBELLUM" centred at PILL (shot 2 only)
   slot: { c: [0.1, 0.52] as P2, size: 0.4 },          // the thought card (forecast / knob / stamp / loading)
   cereb: [-0.108, 0.048] as P2,                       // the cerebellum's centre
-  pill: [-0.175, -0.11] as P2,
+  pill: [-0.24, -0.135] as P2,
   box: { x0: -0.33, x1: 0.28, y0: -0.17, y1: 0.68 },
 };
 /** head frame: yaw toward the (story) camera like world.ts cards; R = right, N = toward the camera */
@@ -186,6 +186,10 @@ class Holo {
     const geo = new THREE.PlaneGeometry(mw, mh);
     const main = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: this.tex, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide, toneMapped: false }));
     main.renderOrder = ro; this.add(main);
+    // depth-only twin (opaque pixels only): the world's ink pass skips pixels with something nearer in the depth buffer,
+    // so background outlines no longer draw across the cards / pill / brain (QA fix)
+    const dm = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: this.tex, transparent: true, alphaTest: 0.5, colorWrite: false, depthWrite: true, fog: false, side: THREE.DoubleSide }));
+    dm.renderOrder = ro + 1; this.add(dm);
     if (glow) {
       this.glowMap = new THREE.CanvasTexture(glow.cv); this.glowMap.colorSpace = THREE.SRGBColorSpace;
       const gm = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: this.glowMap, color: glow.col, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false, side: THREE.DoubleSide, toneMapped: false }));
@@ -196,7 +200,7 @@ class Holo {
   set opacity(a: number) { for (const m of this.mats) m.opacity = a; this.group.visible = a > 0.002; }
 }
 
-const LBW = 1024, LBH = 466, LS = LBW / LAYOUT.label.w;   // label canvas: 0.44 x 0.2 m, 2327 px/m
+const LBW = 1024, LBH = 558, LS = LBW / LAYOUT.label.w;   // label canvas: 0.44 x 0.2 m, 2327 px/m
 const SLN = 1024, SLH = 1536, SLT = 512;                  // slot canvas: 0.4 x 0.6 m, 2560 px/m; card area = the lower 1024 (SLT px headroom for the stamp)
 const EMN = 512, ES = EMN / BRN;                          // emissive twin of the brain canvas
 const WIPE0 = BRN / 2 + 20 - 0.47 * BU, WIPE1 = BRN / 2 + 20 + 0.42 * BU; // materialise wipe: brain top .. brainstem tip (px)
@@ -480,7 +484,8 @@ export class Brain {
     g.fillStyle = gr; g.beginPath(); g.roundRect(-w / 2, -h / 2, w, h, h / 2); g.fill();
     g.strokeStyle = INK; g.lineWidth = 12; g.stroke();
     g.fillStyle = "rgba(255,255,255,0.55)"; g.beginPath(); g.roundRect(-w / 2 + 26, -h / 2 + 12, w - 52, h * 0.22, h * 0.11); g.fill();
-    text(g, "CEREBELLUM", 0, 6, 0.05 * LS, INK, INK, 0, 900);
+    g.font = `900 ${0.05 * LS}px ${FONT}`; const fz = 0.05 * LS * Math.min(1, (w - 70) / g.measureText("CEREBELLUM").width); // fit inside the pill
+    text(g, "CEREBELLUM", 0, 6, fz, INK, INK, 0, 900);
     const sw = id === 2 ? clamp01((t - (W.cerebellum + 0.25)) / 0.5) : 0; // shine sweep once it lands
     if (sw > 0 && sw < 1) {
       g.save(); g.beginPath(); g.roundRect(-w / 2, -h / 2, w, h, h / 2); g.clip();

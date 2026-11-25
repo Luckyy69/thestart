@@ -19,7 +19,7 @@ import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeom
 import { ctex } from "../bridge/paint";
 import { twoTone } from "../bridge/shade";
 import { NOINK } from "../bridge/ink";
-import { HOME, RIG, V3, robotAt, slowBotAt, smooth, clamp01, glide } from "./story";
+import { HOME, RIG, V3, W, robotAt, slowBotAt, smooth, clamp01, glide } from "./story";
 
 const TAU = Math.PI * 2;
 const DEBUG_CAM = false; // TEMP: props-only framing for stills (must be false when reporting)
@@ -48,7 +48,7 @@ export const palmPos = (_id = 4, _t = 0): V3 => R(PALM_L[0], PALM_L[1], PALM_L[2
 export const foamTipAt = (id: number, t: number): { pos: V3; contact: number; dx: number } => {
   const r = robotAt(id, t), ph = r.phase - OMEGA * r.delay;
   const dx = TIP_AMP * Math.sin(ph) * r.run, lift = 0.07 * (1 - r.run);
-  return { pos: R(PALM_L[0] + dx, PALM_L[1] + 0.032 + lift, PALM_L[2] + 0.03), contact: r.run, dx };
+  return { pos: R(PALM_L[0] + dx, PALM_L[1] + 0.032 + lift, PALM_L[2] + 0.03 + (id === 4 ? 0.14 : 0)), contact: r.run, dx }; // QA2: shot 4 +0.14 (BEAN's card came forward)
 };
 export const foamTipPos = (id: number, t: number): V3 => foamTipAt(id, t).pos;
 /** CONSOLE (rig-local origin on the table, yaw) and the DELAY dial: knob front centre (world), its facing normal,
@@ -66,11 +66,14 @@ export const crtPos = (): V3 => { const p = conToRig(0, 0.452, 0.14); return R(p
 
 // ---------------- the sheet ----------------
 const SX0 = -0.88, SX1 = 0.84, SZ0 = -0.42, SZ1 = 0.64, SNX = 56, SNZ = 40;
-const sheetLift = (s: number, v: number) => { const e = smooth(clamp01((s - 0.4 * v) / (1 - 0.4 * v))); return { e, dy: 0.9 * e + 1.7 * e * e, dz: -1.25 * e * e, dx: -0.25 * e }; };
+// QA2: a readable flutter-off: yanked up + whipped off screen-LEFT over ~772-788 (robot clear by "robot" 783); the sheet
+// folds into the gap between the scientists (z -0.5) and BEAN (z 0.55) so it never cuts through a card
+const sheetS = (id: number, t: number) => (id === 3 ? clamp01((t - (W.robot - 0.37)) / 0.58) : id > 3 ? 1 : 0);
+const sheetLift = (s: number, v: number) => { const e = smooth(clamp01((s - 0.2 * v) / (1 - 0.2 * v))); return { e, dy: 1.25 * (1 - (1 - e) ** 2), dz: 0, dx: -0.1 * e - 2.2 * e * e * e }; };
 /** the two BACK corners of the sheet (world): scientists standing behind the table grab these (shot 3) */
 export const sheetCorners = (id: number, t: number): [V3, V3] => {
-  const s = robotAt(id, t).sheet, L = sheetLift(s, 0);
-  return [R(SX0 + L.dx, 0.01 + L.dy, SZ0 + L.dz), R(SX1 + L.dx, 0.01 + L.dy, SZ0 + L.dz)];
+  const s = sheetS(id, t), L = sheetLift(s, 0);
+  return [R(SX0 + L.dx, 0.01 + L.dy, SZ0 + 0.335 * L.e), R(SX1 + L.dx, 0.01 + L.dy, SZ0 + 0.335 * L.e)];
 };
 
 // ---------------- the little slow robot (HOME, shot 7) ----------------
@@ -676,27 +679,27 @@ export class Props {
     if (key !== this.crt.key) { this.crt.key = key; drawCRT(this.crt.cv.getContext("2d")!, r.delay, r.tickle, r.run, r.phase, t); this.crt.tex.needsUpdate = true; }
     (this.crt.glow.material as THREE.SpriteMaterial).opacity = 0.16 + 0.1 * hot;
     // ---- sheet ----
-    this.updateSheet(r.sheet);
+    this.updateSheet(sheetS(id, t));
   }
 
   private updateSheet(s: number) {
     this.sheet.visible = s < 0.999;
     if (!this.sheet.visible) return;
     const p = this.sheet.geometry.attributes.position as THREE.BufferAttribute, tmp = this.sheetTmp;
-    const crumple = smooth((s - 0.7) / 0.3);
+    const crumple = smooth((s - 0.72) / 0.28);
     let cx = 0, cy = 0, cz = 0;
     // PlaneGeometry rows run top (v = 1) -> bottom: row j = back (z0) -> front (z1), so the stamp reads upright
     for (let j = 0; j <= SNZ; j++) for (let i = 0; i <= SNX; i++) {
       const k = j * (SNX + 1) + i, v = j / SNZ, u = i / SNX;
       const x = lerp(SX0, SX1, u), z = lerp(SZ0, SZ1, v), y0 = this.sheetRest[k];
-      const L = sheetLift(s, v), wave = 0.07 * Math.sin(9 * v - 22 * s + u * 3) * Math.sin(Math.PI * L.e);
-      tmp[k * 3] = x + L.dx + 0.05 * Math.sin(u * 5 + s * 9) * L.e;
+      const L = sheetLift(s, v), fl = Math.sin(Math.PI * L.e), wave = 0.11 * Math.sin(10 * v - 26 * s + u * 4) * fl + 0.12 * Math.sin(Math.PI * u) * fl;
+      tmp[k * 3] = x + L.dx + 0.07 * Math.sin(u * 5 + s * 11) * L.e;
       tmp[k * 3 + 1] = y0 * (1 - L.e) + L.dy + wave;
-      tmp[k * 3 + 2] = z + L.dz;
+      tmp[k * 3 + 2] = z + (0.12 - z) * 0.62 * L.e + 0.05 * Math.sin(u * 7 - 20 * s) * fl;
       cx += tmp[k * 3]; cy += tmp[k * 3 + 1]; cz += tmp[k * 3 + 2];
     }
     cx /= p.count; cy /= p.count; cz /= p.count;
-    const sc = 1 - 0.88 * crumple;
+    const sc = 1 - 0.6 * crumple;
     for (let k = 0; k < p.count; k++) p.setXYZ(k, cx + (tmp[k * 3] - cx) * sc, cy + (tmp[k * 3 + 1] - cy) * sc, cz + (tmp[k * 3 + 2] - cz) * sc);
     p.needsUpdate = true; this.sheet.geometry.computeVertexNormals();
   }

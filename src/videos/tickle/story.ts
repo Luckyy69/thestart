@@ -50,7 +50,7 @@ export const SHOTS: ShotDef[] = [
 export const XFADE: Record<number, number> = { 3: 12, 4: 6, 5: 8, 6: 6, 7: 8 }; // dissolves (cam owner): 3 brain push -> whiteboard brain, 4 + 6 continuous softeners, 5 + 7 whip-pans
 /** smooth light turns: [fromLook, toLook, f0, f1, place] */
 export const LOOK_RAMPS: [Look, Look, number, number, Place][] = [
-  ["morning", "xray", 252, 270, "home"], ["lab", "peak", 1107, 1160, "lab"], ["peak", "xray", 1287, 1300, "lab"],
+  ["morning", "xray", 252, 270, "home"], ["lab", "reveal", 650, 735, "lab"], ["lab", "peak", 1107, 1160, "lab"], ["peak", "xray", 1287, 1300, "lab"],
 ];
 export const shotAt = (f: number) => { for (const s of SHOTS) if (f >= s.a && f < s.b) return s; return SHOTS[SHOTS.length - 1]; };
 export const layersAt = (f: number): { id: number; alpha: number }[] => {
@@ -141,11 +141,11 @@ const LY = 1.3;
 const BOARD_BRAIN: V3 = La(-0.56, 1.64, -1.95);                 // the brain drawn on the whiteboard (sets.ts boardTex)
 const L_BOARD: F = [La(-0.53, 1.68, -0.66), BOARD_BRAIN];      // tight on the drawing (behind the scientists), fov 34
 const L_LONDON = fr(La, 0, -0.45, 0.25, 2.55, 40, 0, 0.16);    // "London" (700): the whole lab, sheet-covered rig
-const L_ROBOT = fr(La, 0.05, -0.15, 0.6, 2.2, 40, 16, 0.34, 1.95);       // "robot" (783): the sheet whips off, spotlight
+const L_ROBOT = fr(La, 0.27, -0.15, 0.6, 2.2, 40, 16, 0.34, 2.3); // QA2: was x 0.05 wmin 1.95 (SCI_B at the table end now)       // "robot" (783): the sheet whips off, spotlight
 const L_HANDLE = fr(La, 0.22, 0.45, 0.62, 1.82, 34, 26, 0.16, 1.4);    // "handle" (820): his fist on the joystick + face
 const L_PALM = fr(La, -0.24, 0.45, 0.58, 1.82, 34, -26, 0.16, 1.4);    // "other hand" (901): foam tip on his palm
 const L_BARELY = fr(La, -0.02, 0.5, 0.7, 1.78, 32, 4, 0.1, 1.35);        // "barely" (963): bored face + both hands
-const L_DELAY = fr(La, 0.6, -0.32, 0.95, 2.05, 44, 52, 0.18, 1.25);   // "delay" (1031): SCI_B's hand on the dial
+const L_DELAY = fr(La, 0.84, -0.1, 0.9, 2.02, 34, 6, 0.18, 1.45); // QA2: was az 52 (console side-on, SCI_B hidden)   // "delay" (1031): SCI_B's hand on the dial
 const L_DIAL = fr(La, 0.52, -0.08, 1.0, 1.62, 30, 8, 0.06);      // "second" (1092): the dial + CRT "DELAY: 0.20 s"
 const L_FACE = fr(La, 0, 0.55, LY - 0.4, LY + 1.0, 34, -3, 0.05, 1.25); // "suddenly" (1134) + THE MEME FACE (1177) + HAHA bursts
 const L_MORE = fr(La, 0.22, 0.2, 0.6, LY + 1.0, 38, 12, 0.14, 1.75);       // "more" (1254): dial cranked, scientists amazed
@@ -153,7 +153,7 @@ const L_XRAY = fr(La, -0.03, 0.55, LY - 0.36, LY + 0.74, 32, 0, 0.04, 1.08); // 
 
 // ---- HOME outro (shot 7): BEAN in the armchair (card H+(-1.6,0,0.15), head ~1.13); slow robot on the floor ----
 const O_CHAIR = fr(Ho, -1.5, 0.15, 0.25, 1.62, 36, -6, 0.08);    // whip lands: BEAN in the armchair
-const O_BOT = fr(Ho, -0.98, 0.42, -0.06, 0.62, 34, 8, 0.45, 1.05);        // "robot" (1417): tilt down to the creeping toy
+const O_BOT = fr(Ho, -0.98, 0.42, -0.06, 0.62, 34, 8, 0.36, 0.82); // QA: tighter on the little robot        // "robot" (1417): tilt down to the creeping toy
 const O_END = fr(Ho, -1.36, 0.2, -0.24, 1.62, 38, 2, 0.18);     // "slow one" (1450) -> end: BEAN giggling + the robot
 
 const CAMS: Record<number, (f: number) => Cam> = {

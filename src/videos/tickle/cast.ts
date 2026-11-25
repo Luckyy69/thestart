@@ -38,6 +38,10 @@ const IDX: Record<CastId, number> = { bean: 1, sciA: 2, sciB: 3 };
 export const BEAN_HOME: V3 = [HOME[0], 0, HOME[2]];
 export const STOOL: V3 = [LAB[0], 0, LAB[2] + 0.55];
 export const BEAN_LAB: V3 = [LAB[0], 0, LAB[2] + 0.55];
+/** shots 5-6 (QA): card 7 cm forward (still inside the stool seat) so the table front edge (z 0.47) is far enough behind
+ *  him for the ink pass's occlusion test: no dark table lines across his hoodie */
+const BEAN_LAB5: V3 = [LAB[0], 0, LAB[2] + 0.62];
+const beanA = (id: number): V3 => (id === 5 || id === 6 ? BEAN_LAB5 : BEAN_LAB);
 export const ARMCHAIR: V3 = [HOME[0] - 1.6, 0, HOME[2] - 0.3];
 export const BEAN_CHAIR: V3 = [HOME[0] - 1.6, 0, HOME[2] + 0.15];
 export const SCI_A: V3 = [LAB[0] - 0.6, 0, LAB[2] - 0.5];
@@ -123,8 +127,8 @@ const bean1 = (t: number): Rig => {
     [W.notyou - 0.25, wag],
     [W.brain0 - 0.32, tap],
   ]);
-  const e = faceAt(t, [[-9, "stone"], [W.wait, "stone2"], [W.nothing, "shrug"], [W.notyou, "nope"], [W.brain0, "smart"]]);
-  return { who: "bean", kit: KITS.bean, pose, face: { e, k: 1 }, swaps: [W.wait, W.nothing, W.notyou, W.brain0], A: BEAN_HOME };
+  const e = faceAt(t, [[-9, "stone"], [W.wait - 0.15, "stone2"], [W.nothing, "shrug"], [W.notyou, "nope"], [W.brain0 - 0.15, "smart"]]); // QA: swap (+ its blink) lands before "brain", eyes open on the word
+  return { who: "bean", kit: KITS.bean, pose, face: { e, k: 1 }, swaps: [W.wait - 0.15, W.nothing, W.notyou, W.brain0 - 0.15], A: BEAN_HOME };
 };
 const bean2 = (t: number): Rig => {
   let pose = mixPose(tap(t), standBase(), smooth((t - shotStart(2)) / 0.55)); // continuous with the end of shot 1
@@ -136,11 +140,15 @@ const bean2 = (t: number): Rig => {
 const MEME_T = W.tickled; // the peak: "it tickled."
 const beanLab = (id: number, t: number, cp: Vp): Rig => {
   const pose = seated(), rb = robotAt(id, t), f = frameNo(t);
+  // QA2 (shots 3-4): card plane 0.14 m forward so the yawed card clears the table front (z 0.46) by > the ink pass tolerance (~7.5 cm): no table ink
+  // through his tummy; shot 4's palm target + foam tip (props.foamTipAt) come forward by the same 0.14 so the tip stays in front of the card
+  const BL: V3 = id === 3 || id === 4 ? [BEAN_LAB[0], BEAN_LAB[1], BEAN_LAB[2] + 0.14] : BEAN_LAB;
   let kick: [number, number] = [0, 0];
   if (id >= 4) {
-    const grip = proj(cp, BEAN_LAB, handleAt(id, t)), palm = proj(cp, BEAN_LAB, PALM);
+    const BA: V3 = id === 3 || id === 4 ? BL : beanA(id);
+    const grip = proj(cp, BA, handleAt(id, t)), palm = proj(cp, BA, id === 4 ? [PALM[0], PALM[1], PALM[2] + 0.14] : PALM);
     const kH = id === 4 ? smooth((t - (W.handle - 0.65)) / 0.45) : 1, kP = id === 4 ? smooth((t - (W.tickles - 0.95)) / 0.45) : 1;
-    pose.hands = [lerp2(LAP[0], palm, kP), lerp2(LAP[1], grip, kH)];
+    pose.hands = [lerp2(LAP[0], id === 4 ? [palm[0] + 40, palm[1]] : palm, kP), lerp2(LAP[1], grip, kH)]; // QA2: +40 = the drawn palm cup (not the wrist) under the foam tip
     pose.hk = [kP > 0.55 ? "palm" : "rest", kH > 0.55 ? "grip" : "rest"];
     pose.ha = [null, kH > 0.55 ? -1.9 : null];
     pose.twitch = rb.tickle > 0.02 ? q((0.5 + 0.5 * Math.sin(t * (9 + 22 * rb.tickle))) * Math.min(1, rb.tickle * 2.5), 10) : 0;
@@ -169,10 +177,10 @@ const beanLab = (id: number, t: number, cp: Vp): Rig => {
   }
   if (kick[0] > 0 || kick[1] > 0) {
     const kn = pose.knees!, ft = pose.feet;
-    pose.knees = [0, 1].map((sd) => { const s = sd ? 1 : -1; return [q(kn[sd][0] + s * 10 * kick[sd], 2), q(kn[sd][1] - 26 * kick[sd], 2)]; }) as [P2, P2];
-    pose.feet = [0, 1].map((sd) => { const s = sd ? 1 : -1; return [q(ft[sd][0] + s * 62 * kick[sd], 2), q(ft[sd][1] - 150 * kick[sd], 2)]; }) as [P2, P2];
+    pose.knees = [0, 1].map((sd) => { const s = sd ? 1 : -1; return [q(kn[sd][0] + s * 10 * kick[sd], 2), q(kn[sd][1] - 12 * kick[sd], 2)]; }) as [P2, P2];
+    pose.feet = [0, 1].map((sd) => { const s = sd ? 1 : -1; return [q(ft[sd][0] + s * 78 * kick[sd], 2), q(ft[sd][1] - 62 * kick[sd], 2)]; }) as [P2, P2];
   }
-  return { who: "bean", kit: KITS.bean, pose, face: { e, k, shake: f % 6 }, swaps, A: BEAN_LAB, kick };
+  return { who: "bean", kit: KITS.bean, pose, face: { e, k, shake: f % 6 }, swaps, A: id === 3 || id === 4 ? BL : beanA(id), kick };
 };
 const bean7 = (t: number, cp: Vp): Rig => {
   const g = smooth((t - (W.slow - 0.1)) / 0.25), b = Math.abs(Math.sin(t * Math.PI * 6.2)) * g;
@@ -192,6 +200,8 @@ const notes = (t: number, speed = 1): Pose => ({
   feet: STAND, hands: [[250, 548], [q(316 + 7 * Math.sin(t * 9 * speed), 2), q(532 + 3 * Math.sin(t * 14 * speed), 2)]], hk: ["rest", "rest"],
   hold: ["clipboard", "pencil"], front: [true, true],
 });
+/** shots 5-6 (QA): the scientists lean out to gawp at the meme laugh (0 -> 1 just after "it tickled") */
+const peekK = (id: number, t: number) => (id === 6 ? 1 : smooth((t - (MEME_T + 0.05)) / 0.4));
 const sciA = (id: number, t: number, cp: Vp): Rig => {
   let pose: Pose, e: Face = "notes";
   const swaps: number[] = [];
@@ -215,18 +225,22 @@ const sciA = (id: number, t: number, cp: Vp): Rig => {
     pose = notes(t, fast ? 2.6 : on(t, MEME_T) ? 0 : 1);
     e = faceAt(t, [[-9, "notes"], [MEME_T + 0.1, "amazed"], [W.longer, "notes"], [W.tickled2, "amazed"]]); swaps.push(MEME_T + 0.1, W.longer, W.tickled2);
   } else { pose = notes(t, 2.2); e = "amazed"; }
+  if (id === 5 || id === 6) pose = { ...pose, lean: q(-0.2 * peekK(id, t), 200) }; // QA: leans out from behind BEAN's hair to gawp
   return { who: "sciA", kit: KITS.sciA, pose, face: { e }, swaps, A: SCI_A };
 };
+const SCI_B5: V3 = [SCI_B[0] + 0.26, 0, SCI_B[2]]; // QA shots 5-6: a step right, clear of the CRT, so his gawp reads
 const sciB = (id: number, t: number, cp: Vp): Rig => {
   let pose: Pose, e: Face = "smile", look: P2 | undefined;
   const swaps: number[] = [];
+  // QA2 (shots 3-4): at the table end, beside + just in front of the console (was straight behind the CRT, hand hidden) so his face reads while he turns the dial
+  const SB: V3 = id === 3 || id === 4 ? [LAB[0] + 1.1, 0, LAB[2] + 0.08] : SCI_B;
   const dial = (t0: number, t1: number, turn: number) => (u: number): Pose => ({
-    feet: STAND, hands: [proj(cp, SCI_B, DIAL), SCI_REST[1]], hk: ["grip", "rest"], front: [true, false],
+    feet: STAND, hands: [proj(cp, id === 5 || id === 6 ? SCI_B5 : SB, DIAL), SCI_REST[1]], hk: ["grip", "rest"], front: [true, false],
     ha: [q(-1.5 + turn * smooth((u - t0) / Math.max(0.1, t1 - t0)), 50), null],
   });
   if (id === 3) {
     pose = segPose(t, [
-      [-9, (u) => ({ feet: STAND, hands: [[196, 600], proj(cp, SCI_B, sheetCorners(3, u)[1])], hk: ["rest", "grip"] })],
+      [-9, (u) => ({ feet: STAND, hands: [[196, 600], proj(cp, SB, sheetCorners(3, u)[1])], hk: ["rest", "grip"] })],
       [W.robot - 0.22, () => ({ feet: STAND, hands: [[150, 236], [450, 262]], hk: ["open", "open"], ha: [-2.3, -0.8] })],
     ], 0.24);
     e = faceAt(t, [[-9, "sly"], [W.robot, "tada"]]); swaps.push(W.robot);
@@ -240,7 +254,8 @@ const sciB = (id: number, t: number, cp: Vp): Rig => {
     swaps.push(W.suddenly, MEME_T, W.longer - 0.3, W.tickled2 + 0.3);
     if (e === "focus") look = [-1, 0.5];
   } else { pose = sciBase(); e = "amazed"; }
-  return { who: "sciB", kit: KITS.sciB, pose, face: { e, look }, swaps, A: SCI_B };
+  if (id === 5 || id === 6) pose = { ...pose, lean: q(0.16 * peekK(id, t), 200) }; // QA: leans out from behind the CRT to gawp
+  return { who: "sciB", kit: KITS.sciB, pose, face: { e, look }, swaps, A: id === 5 || id === 6 ? SCI_B5 : SB };
 };
 
 const rigsAt = (id: number, t: number, cp: Vp): Rig[] => {
@@ -323,7 +338,7 @@ const limp = (out: Stage, t: number, rib: V3, side: number, cam: CamInfo, k: num
   for (let j = 0; j < 2; j++) {
     const ph = ((t * 0.85 + j * 0.5 + hh(seed, j)) % 1), s = k * Math.sin(Math.PI * clamp01(ph / 0.9)) * (0.22 + 0.04 * j);
     const sag = q(smooth(ph / 0.85), 10);
-    fxCard(out, `limp|${sag}`, 256, 256, (p) => fxLimp(p, sag), at3(rib, R, U, N, side * (0.2 + 0.05 * j), 0.06 - 0.08 * j, 0.12), s, s, { rot: side > 0 ? 0 : Math.PI });
+    fxCard(out, `limp|${sag}`, 256, 256, (p) => fxLimp(p, sag), at3(rib, R, U, N, side * (0.13 + 0.05 * j), 0.06 - 0.08 * j, 0.12), s, s, { rot: side > 0 ? 0 : Math.PI });
   }
 };
 const SQ_COLS = ["#ff4f9a", "#ffd23a", "#3fd8ff", "#7dff6a", "#ff8a2a"];
@@ -415,9 +430,10 @@ const hehe = (out: Stage, t: number, t0: number, head: V3, cam: CamInfo) => {
   const { R, U, N } = camVecs(cam, head);
   for (let i = 0; i < 8; i++) {
     const b = t0 + i * 0.62;
+    if (b + 0.95 > SHOTS[6].b / FPS) break; // QA: no half-grown bubble on the final hold
     if (t < b || t > b + 1.0) continue;
     const k = env(t, b, b + 0.6, 0.16, 0.3), word = i % 2 ? "hee hee!" : "hehe!", side = i % 2 ? -1 : 1;
-    fxCard(out, `hehe|${word}`, 400, 220, (p) => fxHehe(p, word), at3(head, R, U, N, side * 0.34, 0.2 + 0.08 * (t - b) + (i % 2) * 0.1, 0.15), 0.3 * k, 0.165 * k, { rot: side * 0.08 });
+    fxCard(out, `hehe|${word}`, 400, 220, (p) => fxHehe(p, word), at3(head, R, U, N, 0.36 + (i % 2) * 0.06, 0.12 + 0.08 * (t - b) + (i % 2) * 0.16, 0.15), 0.3 * k, 0.165 * k, { rot: side * 0.08 });
   }
 };
 
@@ -451,6 +467,7 @@ export const castAt = (id: number, t: number, cam: CamInfo, light: "day" | "gold
           mark(out, t, W.robot - 0.05, W.robot + 1.4, add(head, [0, 0.4, 0]), "!", 0.18);
         }
         if (id === 3 || id === 4) sparkles(out, t, W.robot - 0.25, W.robot + 1.3, [RIG[0], RIG[1] + 0.32, RIG[2] + 0.05], cam, 0.42, 9, 23, 0.1);
+        if (id === 3 || id === 4) sparkBurst(out, t, W.robot - 0.12, [RIG[0] - 0.1, RIG[1] + 0.4, RIG[2] + 0.05], cam, 0.12, 0.8); // QA2: reveal ta-da ring
         if (id >= 4) {
           // the handle hand moving: little motion arcs on the outside of the fist
           const mv = Math.abs(Math.cos(rb.phase)) * rb.run;
