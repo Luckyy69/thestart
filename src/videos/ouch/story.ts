@@ -52,7 +52,7 @@ export const SHOTS: ShotDef[] = [
   { id: 7, a: 1660, b: 1865, look: "lab", place: "lab", light: "day" },     // "Made-up swear words?": a volunteer yells "FOUCH!" -> bubble fizzles, the bar doesn't move ("Didn't work." 51.85); a grumpy sailor-type who swears all day: tiny bar ("less of a boost" 55.15)
   { id: 8, a: 1865, b: 1995, look: "morning", place: "home", light: "golden" },// CALLBACK: BEAN again with coffee, stubs the same toe, inhales... "for your toes." (60.50): censor bar + BEEP pops over his mouth; hold
 ];
-export const XFADE: Record<number, number> = { 3: 8, 4: 8, 8: 8 };
+export const XFADE: Record<number, number> = { 3: 8, 4: 8, 5: 6, 6: 6, 7: 8, 8: 8 }; // dissolves (cam owner): 3 brain->planet push, 4 whip down, 5/6 face-change softeners (camera continuous), 7 + 8 whip-pans
 /** smooth light turns: [fromLook, toLook, f0, f1, place] (world.ts blends the light rig) */
 export const LOOK_RAMPS: [Look, Look, number, number, Place][] = [
   ["morning", "xray", 247, 265, "home"], ["lab", "drama", 1456, 1480, "lab"], ["drama", "peak", 1539, 1549, "lab"],
@@ -102,49 +102,116 @@ export const labAt = (id: number, t: number) => {
 export const BEEPS: [number, string][] = [[W.swearing + 0.05, "swearer"], [W.swore + 0.1, "swearer"], [STUB8 + 0.15, "bean"]];
 
 // ---------------- camera ----------------
+// CAMERA (cam owner). Each shot = waypoints [frame, pos, look, fov, opts]: TRAVEL between them (glide by default), then
+// HOLD still (two waypoints with the same values) through the important word. Waypoints may lie outside the shot's
+// [a, b] so the camera keeps moving through the XFADE dissolves. Transitions:
+//   1->2 one continuous camera (no cut; the world freezes)      2->3 push INTO the glowing brain (fov 36->11), out of the
+//   3->4 whip-pan DOWN off the planet into the lab                   "brain-ball" = the planet (fov 15->30), match move
+//   4->5, 5->6 continuous camera + soft dissolve                     6->7 whip-pan right, 7->8 whip-pan right home
 export type Cam = { pos: V3; look: V3; fov: number; roll: number };
-type Key = { f: number; pos: V3; look: V3; fov?: number; roll?: number; cut?: boolean; lin?: boolean };
-const P = (f: number, pos: V3, look: V3, fov = 40, roll = 0): Key => ({ f, pos, look, fov, roll, lin: true });
+type Ease = "io" | "in" | "out";
+type WP = [number, V3, V3, number, { ease?: Ease; roll?: number }?];
 const at = (o: V3) => (x: number, y: number, z: number): V3 => [o[0] + x, o[1] + y, o[2] + z];
-const Ho = at(HOME), Gl = at(GLOBE), La = at(LAB);
-// CAMERA (cam owner). Each shot = a few waypoints [frame, pos, look, fov, roll?]: TRAVEL between them with glide(), then
-// HOLD still (two waypoints with the same values) through the important word. Tiny drift only while travelling.
-type WP = [number, V3, V3, number, number?];
+const Ho = at(HOME), La = at(LAB);
+// tiny planet (same maths as globe.ts: centre GLOBE+(0,-6,0), radius 6, lon 0 = +z, lon 90 = +x)
+const PC: V3 = [GLOBE[0], GLOBE[1] - 6, GLOBE[2]];
+const sph = (lon: number, lat: number, r: number): V3 => {
+  const a = (lon * Math.PI) / 180, b = (lat * Math.PI) / 180;
+  return [PC[0] + Math.cos(b) * Math.sin(a) * r, PC[1] + Math.sin(b) * r, PC[2] + Math.cos(b) * Math.cos(a) * r];
+};
 const lerp3 = (a: V3, b: V3, u: number): V3 => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
-const shot = (id: number, ws: WP[]): Key[] => {
-  const { a, b } = SHOTS[id - 1], out: Key[] = [];
-  const fn = (f: number) => {
-    let i = 0;
-    while (i < ws.length - 2 && f >= ws[i + 1][0]) i++;
-    const A = ws[i], B = ws[Math.min(i + 1, ws.length - 1)];
-    const u = B[0] === A[0] ? 0 : glide((f - A[0]) / (B[0] - A[0]));
-    return P(f, lerp3(A[1], B[1], u), lerp3(A[2], B[2], u), A[3] + (B[3] - A[3]) * u, (A[4] ?? 0) + ((B[4] ?? 0) - (A[4] ?? 0)) * u);
-  };
-  for (let f = a; ; f += 2) { const g = Math.min(f, b); out.push(fn(g)); if (g >= b) break; }
-  return out;
+const ease = (e: Ease | undefined, x: number) => { const u = clamp01(x); return e === "in" ? u * u * u : e === "out" ? 1 - (1 - u) ** 3 : glide(u); };
+const path = (ws: WP[]) => (f: number): Cam => {
+  if (f <= ws[0][0]) return { pos: ws[0][1], look: ws[0][2], fov: ws[0][3], roll: ws[0][4]?.roll ?? 0 };
+  let i = 0;
+  while (i < ws.length - 2 && f >= ws[i + 1][0]) i++;
+  const A = ws[i], B = ws[i + 1], u = ease(B[4]?.ease, (f - A[0]) / (B[0] - A[0]));
+  return { pos: lerp3(A[1], B[1], u), look: lerp3(A[2], B[2], u), fov: A[3] + (B[3] - A[3]) * u, roll: (A[4]?.roll ?? 0) + ((B[4]?.roll ?? 0) - (A[4]?.roll ?? 0)) * u };
 };
-// first-pass framing (the cam owner rewrites this)
-const CAMS: Record<number, Key[]> = {
-  1: shot(1, [[0, Ho(-1.6, 1.3, 3.2), Ho(-0.2, 0.9, 0), 40], [40, Ho(-0.4, 1.2, 2.6), Ho(0.3, 0.9, 0), 36], [250, Ho(-0.3, 1.25, 2.4), Ho(0.3, 0.95, 0), 34]]),
-  2: shot(2, [[250, Ho(0.9, 0.5, 1.8), Ho(0.35, 0.2, 0), 38], [480, Ho(0.6, 1.6, 2.0), Ho(0.3, 1.4, 0), 36], [590, Ho(0.5, 1.6, 1.8), Ho(0.3, 1.45, 0), 34]]),
-  3: shot(3, [[590, Gl(0, 2, 16), Gl(0, -1, 0), 40], [760, Gl(10, 4, 10), Gl(0, -1, 0), 40], [900, Gl(0, 10, 18), Gl(0, -2, 0), 42], [1000, Gl(0, 10, 20), Gl(0, -2, 0), 42]]),
-  4: shot(4, [[1000, La(0, 1.6, 5), La(0, 1.0, 0), 40], [1180, La(0, 1.4, 3.6), La(0, 1.0, 0), 38], [1460, La(0, 1.4, 3.4), La(0, 1.0, 0), 38]]),
-  5: shot(5, [[1460, La(0, 1.4, 3.4), La(0, 1.1, 0), 38], [1545, La(0.6, 1.4, 2.6), La(0.7, 1.2, 0), 34]]),
-  6: shot(6, [[1545, La(0.7, 1.35, 2.2), La(0.7, 1.25, 0), 32], [1660, La(0.7, 1.35, 2.2), La(0.7, 1.25, 0), 32]]),
-  7: shot(7, [[1660, La(0, 1.5, 3.8), La(0, 1.0, 0), 40], [1865, La(0, 1.5, 3.6), La(0, 1.0, 0), 40]]),
-  8: shot(8, [[1865, Ho(-0.4, 1.2, 2.6), Ho(0.3, 0.9, 0), 36], [1995, Ho(-0.3, 1.25, 2.3), Ho(0.3, 0.95, 0), 33]]),
+/** planet waypoints in orbit coordinates: camera at (lon, lat, dist from the planet centre), pos lerped on the sphere */
+type OW = [number, number, number, number, V3, number, { ease?: Ease }?];
+const orbit = (ws: OW[]) => (f: number): Cam => {
+  let i = 0;
+  while (i < ws.length - 2 && f >= ws[i + 1][0]) i++;
+  const A = ws[i], B = ws[Math.min(i + 1, ws.length - 1)], u = f <= A[0] ? 0 : ease(B[6]?.ease, (f - A[0]) / (B[0] - A[0]));
+  const m = (j: 1 | 2 | 3 | 5) => A[j] + (B[j] - A[j]) * u;
+  const arc = A[1] !== B[1] && A[3] === B[3] ? Math.sin(Math.PI * u) : 0; // country hops lift up and over the clouds
+  return { pos: sph(m(1), m(2) + 6 * arc, m(3) + 3 * arc), look: lerp3(A[4], B[4], u), fov: m(5) + 6 * arc, roll: 0 };
 };
-const KICKS: [number, number][] = [];
+/** a planet person's close-up: globe.ts countryCam(lon, 28, 13) position, aimed a little below the person so they sit high */
+const cLook = (lon: number) => sph(lon, 42.5, 6.6);
+const cOW = (f: number, lon: number, o?: { ease?: Ease }): OW => [f, lon, 28, 13, cLook(lon), 22, o];
+const FULL_LOOK: V3 = [GLOBE[0], GLOBE[1] - 7.4, GLOBE[2]]; // full planet: pos (3008,4,28) = lon 15.9, lat 19, dist 30.8
+const FULL_LON = 360 + (Math.atan2(8, 28) * 180) / Math.PI, FULL_LAT = (Math.asin(10 / Math.hypot(8, 10, 28)) * 180) / Math.PI, FULL_D = Math.hypot(8, 10, 28);
+
+// framings (reused so holds and continuous cuts match exactly)
+const H_WALK: [V3, V3] = [Ho(-0.85, 1.2, 3.7), Ho(-0.45, 0.92, 0)];
+const H_FULL: [V3, V3] = [Ho(0.12, 1.05, 4.2), Ho(0.1, 0.86, 0)];      // BEAN head-to-toe + the table leg
+const H_FAST: [V3, V3] = [Ho(0.02, 1.2, 3.4), Ho(0.0, 0.98, 0)];
+const H_FAINT: [V3, V3] = [Ho(-0.12, 1.08, 4.15), Ho(0.0, 0.88, 0)];
+const X_PATH: [V3, V3] = [Ho(0.6, 1.25, 4.25), Ho(-0.05, 1.0, 0)];      // x-ray: whole body, toe -> brain path
+const X_HEAD: [V3, V3] = [Ho(0.15, 1.45, 2.85), Ho(-0.12, 1.2, 0)];
+const X_OW: [V3, V3] = [Ho(-0.6, 1.25, 4.15), Ho(-0.05, 1.0, 0)];
+const X_LESS: [V3, V3] = [Ho(-0.35, 1.45, 2.95), Ho(-0.14, 1.2, 0)];
+const BRAIN: V3 = Ho(-0.32, 1.47, 0.07); // props brainPos(2, t) at the end of shot 2
+const BRAIN_IN: V3 = lerp3(BRAIN, X_LESS[0], 0.66 / Math.hypot(X_LESS[0][0] - BRAIN[0], X_LESS[0][1] - BRAIN[1], X_LESS[0][2] - BRAIN[2]));
+const L_WIDE: [V3, V3] = [La(0, 2.05, 5.2), La(0, 1.4, -0.6)];
+const L_SCI: [V3, V3] = [La(0.05, 1.5, 1.85), La(0, 1.22, -0.75)];
+const L_ICE: [V3, V3] = [La(0, 1.9, 4.5), La(0, 1.0, -0.3)];
+const L_VOLA: [V3, V3] = [La(-0.72, 1.45, 1.95), La(-0.82, 1.2, -0.34)];
+const L_VOLB: [V3, V3] = [La(0.72, 1.45, 1.95), La(0.82, 1.2, -0.34)];
+const L_SCREEN: [V3, V3] = [La(0, 2.6, 3.75), La(0, 1.82, -1.575)];
+const L_YOU: [V3, V3] = [La(-0.5, 1.45, 3.0), La(-0.5, 1.15, -0.5)];
+const L_STRONG: [V3, V3] = [La(2.3, 1.5, 2.0), La(0.98, 1.2, -0.62)];
+const L_MEME: [V3, V3] = [La(0.8, 1.42, 1.72), La(0.85, 1.24, -0.31)];
+const L_FOUCH: [V3, V3] = [La(-0.55, 1.5, 2.05), La(-0.68, 1.27, -0.34)];
+const L_FAKE: [V3, V3] = [La(-0.35, 1.9, 3.3), La(-0.4, 1.5, -1.0)];
+const H_END: [V3, V3] = [Ho(0.1, 1.08, 3.85), Ho(0.1, 0.9, 0)];
+const H_IN: [V3, V3] = [Ho(-0.55, 1.12, 3.9), Ho(-0.6, 0.9, 0)];
+const hold = (f0: number, f1: number, F: [V3, V3], fov: number, o?: { ease?: Ease }): WP[] => [[f0, F[0], F[1], fov, o], [f1, F[0], F[1], fov]];
+
+const CAMS: Record<number, (f: number) => Cam> = {
+  1: path([[0, ...H_WALK, 40], ...hold(30, 100, H_FULL, 40), ...hold(136, 180, H_FAST, 40), ...hold(208, 250, H_FAINT, 40)]),
+  2: path([...hold(250, 262, H_FAINT, 40), ...hold(296, 336, X_PATH, 40), ...hold(380, 455, X_HEAD, 36), ...hold(490, 514, X_OW, 40),
+    ...hold(546, 562, X_LESS, 36), [574, lerp3(X_LESS[0], BRAIN_IN, 0.12), BRAIN, 33], [594, BRAIN_IN, BRAIN, 9, { ease: "in" }]]),
+  3: orbit([[586, 0, 38, 37, PC, 22], [592, 0, 37, 31, PC, 23, { ease: "out" }], cOW(611, 0), cOW(624, 0), cOW(656, 90), cOW(676, 90), cOW(718, 180), cOW(738, 180),
+    cOW(772, 270), cOW(800, 270), [872, FULL_LON, FULL_LAT, FULL_D, FULL_LOOK, 46], [1004, FULL_LON, FULL_LAT, FULL_D, FULL_LOOK, 46]]),
+  4: path([...hold(1000, 1018, L_WIDE, 44), ...hold(1058, 1088, L_SCI, 40), ...hold(1132, 1180, L_ICE, 46), ...hold(1222, 1242, L_VOLA, 38),
+    ...hold(1278, 1302, L_SCREEN, 44), ...hold(1340, 1404, L_VOLB, 38), ...hold(1432, 1460, L_YOU, 40)]),
+  5: path([...hold(1460, 1470, L_YOU, 40), ...hold(1508, 1524, L_STRONG, 40), ...hold(1542, 1545, L_MEME, 38)]),
+  6: path([...hold(1542, 1588, L_MEME, 38), ...hold(1620, 1660, L_SCREEN, 44)]),
+  7: path([...hold(1660, 1700, L_FOUCH, 38), ...hold(1724, 1766, L_FAKE, 40), ...hold(1800, 1865, L_VOLB, 38)]),
+  8: path([[1865, ...H_IN, 40], ...hold(1897, 1995, H_END, 40)]),
+};
+/** whip-pans: [boundary frame (= incoming shot's a), axis, degrees, roll]. The outgoing camera accelerates into the turn over
+ *  [B-6, B+4], the incoming one arrives already turning over [B-4, B+6] and settles; XFADE blends the two. */
+const WHIPS: [number, "yaw" | "pitch", number, number][] = [[1000, "pitch", -62, 0.06], [1660, "yaw", -75, 0.1], [1865, "yaw", -80, -0.1]];
+const whipOffset = (id: number, f: number): { yaw: number; pitch: number; roll: number } => {
+  const o = { yaw: 0, pitch: 0, roll: 0 };
+  for (const [B, axis, deg, rl] of WHIPS) {
+    const inc = SHOTS.find((s) => s.a === B)!.id;
+    let k = 0;
+    if (id === inc - 1 && f > B - 6) k = clamp01((f - (B - 6)) / 10) ** 2.4;           // outgoing: 0 -> 1
+    else if (id === inc && f < B + 6) k = -((1 - clamp01((f - (B - 4)) / 10)) ** 2.4);  // incoming: -1 -> 0
+    if (!k) continue;
+    o[axis] += deg * k;
+    o.roll += rl * Math.sin(Math.PI * Math.abs(k)) * Math.sign(k || 1);
+  }
+  return o;
+};
+const KICKS: [number, number][] = [[Math.round(STUB1 * FPS) + 1, 0.035]];
 export const camAt = (id: number, f: number): Cam => {
-  const ks = CAMS[id];
-  let k0 = ks[0], k1 = ks[ks.length - 1];
-  for (let i = 0; i < ks.length - 1; i++) if (f >= ks[i].f && (f < ks[i + 1].f || i === ks.length - 2)) { k0 = ks[i]; k1 = ks[i + 1]; break; }
-  if (f < ks[0].f) k1 = k0;
-  if (k1.cut) k1 = k0;
-  const x = k1.f === k0.f ? 0 : clamp01((f - k0.f) / (k1.f - k0.f));
-  const u = k1.lin ? x : glide(x);
-  const m = (a: V3, b: V3) => a.map((v, i) => v + (b[i] - v) * u) as V3;
-  const c: Cam = { pos: m(k0.pos, k1.pos), look: m(k0.look, k1.look), fov: k0.fov! + (k1.fov! - k0.fov!) * u, roll: k0.roll! + (k1.roll! - k0.roll!) * u };
+  const c0 = CAMS[id](f), c: Cam = { pos: [...c0.pos] as V3, look: [...c0.look] as V3, fov: c0.fov, roll: c0.roll };
+  const w = whipOffset(id, f);
+  if (w.yaw || w.pitch) {
+    let dx = c.look[0] - c.pos[0], dy = c.look[1] - c.pos[1], dz = c.look[2] - c.pos[2];
+    const len = Math.hypot(dx, dy, dz), hz = Math.hypot(dx, dz);
+    let yaw = Math.atan2(dx, dz), pitch = Math.atan2(dy, hz);
+    yaw += (w.yaw * Math.PI) / 180; pitch = Math.max(-1.35, Math.min(1.35, pitch + (w.pitch * Math.PI) / 180));
+    dx = Math.sin(yaw) * Math.cos(pitch) * len; dz = Math.cos(yaw) * Math.cos(pitch) * len; dy = Math.sin(pitch) * len;
+    c.look = [c.pos[0] + dx, c.pos[1] + dy, c.pos[2] + dz];
+    c.roll += w.roll;
+  }
   for (const [kf, a] of KICKS) {
     const d = f - kf;
     if (d >= 0 && d < 10) {
@@ -157,7 +224,7 @@ export const camAt = (id: number, f: number): Cam => {
   return c;
 };
 // mild lens blur only (the user: backgrounds must NOT be blurry): [frame, cInf, focus?]
-const DOFK: [number, number, V3?][] = [[0, 1], [250, 1], [590, 0], [1000, 1], [1460, 1], [1545, 1.2], [1660, 1], [1865, 1]];
+const DOFK: [number, number, V3?][] = [[0, 1], [250, 1], [590, 0.5], [1000, 1], [1460, 1], [1545, 1.2], [1660, 1], [1865, 1]];
 export const dofAt = (f: number): { cInf: number; focus?: (f: number) => V3 } => {
   let e: [number, number, V3?] = DOFK[0];
   for (const d of DOFK) if (f >= d[0]) e = d;
