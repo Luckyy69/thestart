@@ -26,6 +26,19 @@ const discTex = () => ctex("sunDisc", 128, 128, (g) => {
   g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
 });
 
+/** QA2: blend two looks (numbers, number arrays and hex colours) */
+const mixLook = (a: LookDef, b: LookDef, k: number): LookDef => {
+  if (k <= 0) return a;
+  if (k >= 1) return b;
+  const mv = (x: unknown, y: unknown): unknown => {
+    if (typeof x === "number" && typeof y === "number") return x + (y - x) * k;
+    if (Array.isArray(x) && Array.isArray(y)) return x.map((v, i) => mv(v, y[i]));
+    if (typeof x === "string" && typeof y === "string" && x[0] === "#" && y[0] === "#") return "#" + new THREE.Color(x).lerp(new THREE.Color(y), k).getHexString();
+    if (x && y && typeof x === "object" && typeof y === "object") { const o: Record<string, unknown> = {}; for (const key of Object.keys(x)) o[key] = mv((x as Record<string, unknown>)[key], (y as Record<string, unknown>)[key]); return o; }
+    return k < 0.5 ? x : y;
+  };
+  return mv(a, b) as LookDef;
+};
 export class World {
   root = new THREE.Group();
   private pool = new Pool();
@@ -62,7 +75,8 @@ export class World {
   }
 
   /** camera-relative sun, frozen per shot (az from the shot's mean view direction, el) */
-  private shotSun(id: number, s: ShotDef, L: LookDef) {
+  private shotSun(id: number, s: ShotDef, L: LookDef): THREE.Vector3 {
+    if (id === 7) return this.shotSun(6, SHOTS[5], LOOKS.middeck); // QA2: one sun for the continuous 6->7 middeck take (no shadow jump)
     let v = this.sunCache.get(id);
     if (v) return v;
     let fx = 0, fz = 0;
@@ -78,7 +92,12 @@ export class World {
   private fx(i: number) { while (this.fxs.length <= i) this.fxs.push(new Fx(this.root)); return this.fxs[i]; }
 
   update(id: number, f: number, cam: THREE.PerspectiveCamera, scene: THREE.Scene) {
-    const t = f / FPS, s = SHOTS[id - 1], LK = LOOKS[s.look], L = LK.light;
+    const t = f / FPS, s = SHOTS[id - 1];
+    let LK = LOOKS[s.look], L = LK.light;
+    if (s.place === "middeck") { // QA2: the peak's green "gross" turn ramps in over 998..1016 (lands on "Wet." 1013), no pop at the 6->7 boundary
+      const g = Math.max(0, Math.min(1, (f - 998) / 18)), gs = g * g * (3 - 2 * g);
+      LK = mixLook(LOOKS.middeck, LOOKS.gross, gs); L = LK.light;
+    }
     // ---- camera ----
     const c = camAt(id, f);
     cam.position.set(...c.pos); cam.up.set(0, 1, 0); cam.lookAt(...c.look); cam.rotateZ(c.roll);

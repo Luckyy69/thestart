@@ -47,7 +47,11 @@ export const stomachWho = (id: number): Who[] => (id === 2 || id === 3 ? ["bean"
 export const stomachPos = (id: number, t: number, who: Who): { pos: V3; scale: number } => {
   const c = chestPos(id, t, who), bob = 0.012 * Math.sin(t * 1.7 + who.length);
   if (who.startsWith("crew")) return { pos: add(c, 0, -0.12 + bob, 0.2), scale: 0.62 };
-  if (who === "newman") return { pos: add(c, -0.62, 0.12 + bob, 0.1), scale: 1 }; // trails behind him (he flies +x, the camera leads)
+  if (who === "newman") { // trails behind him (he flies +x, the camera leads); in flight it rides below his trailing body so it stays in frame
+    const fl = id === 8 ? smooth((t - W.hard) / 0.5) * (1 - smooth((t - (W.fooddown + 0.1)) / 0.8)) : 0;
+    return { pos: add(c, -0.62 + 0.3 * fl, 0.12 - 0.52 * fl + bob, 0.1), scale: 1 };
+  }
+  if (id === 2) return { pos: add(c, -0.37, 0.19 + bob, 0.62), scale: 0.84 }; // backyard: beside his chest on the chair side, away from the table + can
   return { pos: add(c, 0.55, 0.04 + bob, 0.05), scale: 1 };
 };
 /** which can each character holds */
@@ -357,7 +361,7 @@ export class Props {
     this.soda = new Can("red", false); this.soda.group.scale.setScalar(CAN_SCALE); R.add(this.soda.group);
     // spotlight cone + warm pool (shot 4)
     const coneMat = new THREE.ShaderMaterial({
-      uniforms: { col: { value: new THREE.Color(1.0, 0.78, 0.45) }, k: { value: 0 } },
+      uniforms: { col: { value: new THREE.Color(1.35, 1.08, 0.66) }, k: { value: 0 } }, // QA2: brighter, creamier gold (was muddy brown)
       vertexShader: "varying vec3 vN; varying vec3 vW; varying float vH; void main(){ vH = uv.y; vN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position,1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }",
       fragmentShader: "uniform vec3 col; uniform float k; varying vec3 vN; varying vec3 vW; varying float vH; void main(){ vec3 v = normalize(cameraPosition - vW); float e = abs(dot(normalize(vN), v)); float a = pow(e, 1.6) * smoothstep(0.0, 0.35, vH) * (0.35 + 0.65 * vH) * k; gl_FragColor = vec4(col * a * 0.32, 1.0); }",
       transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,

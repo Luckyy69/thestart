@@ -803,7 +803,7 @@ vec3 painter(vec3 p){
   private sunCfg(id: number, t: number): SunCfg | null {
     const s = SHOTS[id - 1];
     if (id === 4) return { az: 4, el: -16.5, show: true, size: 1.4 };          // just under the limb: a backlit rim only
-    if (id === 5) return { az: LOOKS.orbit.sunAz, el: LOOKS.orbit.sunEl, show: true, size: 1.3 };
+    if (id === 5) return { az: -5, el: -14.2, show: true, size: 1.3 }; // QA2: the low sun sits ON the limb, in frame (left of the orbiter)
     if (id === 9) { const u = smooth((t - s.a / FPS - 0.2) / 3.6); return { az: 4, el: -15.9 + 3.4 * u, show: true, size: 1.5 }; } // sunrise over the limb
     if (s.place === "station" || s.place === "middeck") return { az: LOOKS[s.look].sunAz, el: LOOKS[s.look].sunEl, show: false, size: 1 };
     return null;

@@ -413,7 +413,7 @@ const chamferTex = () => repeatTex(ctex("buChamfer", 1024, 256, (g, r) => {
   g.fillStyle = "#bfc6cc"; g.fillRect(0, 0, 1024, 256); noise(g, 0, 0, 1024, 256, r, 3000, 0.05);
   for (let x = 0; x < 1024; x += 256) { g.fillStyle = "#4a525b"; g.fillRect(x, 0, 4, 256); }
   for (let k = 0; k < 6; k++) { const x = 40 + r() * 940; for (let s = 0; s < 6; s++) { g.fillStyle = "#59626c"; rr(g, x + s * 10, 60, 5, 60, 2); g.fill(); } }
-  for (let k = 0; k < 4; k++) label(g, pick(r, ["DUCT", "SMOKE DET", "PWR 28V", "DATA", "AIR IN", "J-12"]), 80 + r() * 860, 190, 90, 20);
+  for (let k = 0; k < 4; k++) label(g, pick(r, ["DUCT", "SMOKE DET", "PWR 28V", "DATA", "AIR IN", "J-12"]), 110 + k * 250 + r() * 140, 190, 90, 20); // spaced: no overlapping plates
   g.fillStyle = "#3e4650"; g.fillRect(0, 0, 1024, 6); g.fillRect(0, 250, 1024, 6);
 }));
 const screenTex = (key: string, kind: number) => ctex(key, 512, 320, (g, r) => {
@@ -475,10 +475,10 @@ class Station {
       const g = new THREE.ShapeGeometry(sh, 48); g.translate(0, 0, -ZW); uvFrom(g, uvW(0.4));
       const m = new THREE.Mesh(g, wallA); R.add(m);
     }
-    { const g = uvFrom(quad(V3(X1, CH, ZW), V3(X0, CH, ZW), V3(X0, YC - CH, ZW), V3(X1, YC - CH, ZW)), uvW(1.3)); this.posZ.add(new THREE.Mesh(g, wallB)); }
-    { const g = uvFrom(quad(V3(X0, YC, -ZW + CH), V3(X1, YC, -ZW + CH), V3(X1, YC, ZW - CH), V3(X0, YC, ZW - CH)), (p) => [(p.x + 2.1) / PERIOD, (p.z + ZW - CH) / (2 * (ZW - CH))]); this.ceil.add(new THREE.Mesh(g, ceilT)); }
-    { const g = uvFrom(quad(V3(X0, 0, ZW - CH), V3(X1, 0, ZW - CH), V3(X1, 0, -ZW + CH), V3(X0, 0, -ZW + CH)), (p) => [(p.x + 0.9) / PERIOD, (p.z + ZW - CH) / (2 * (ZW - CH))]); this.deck.add(new THREE.Mesh(g, deckT)); }
-    const chamUV = (p: THREE.Vector3): [number, number] => [p.x / 3, (p.y < 1 ? p.y : YC - p.y) / CH];
+    { const g = uvFrom(quad(V3(X1, CH, ZW), V3(X0, CH, ZW), V3(X0, YC - CH, ZW), V3(X1, YC - CH, ZW)), (p) => [-(p.x + 1.3) / PERIOD, (p.y - CH) / (YC - 2 * CH)]); this.posZ.add(new THREE.Mesh(g, wallB)); }
+    { const g = uvFrom(quad(V3(X0, YC, -ZW + CH), V3(X1, YC, -ZW + CH), V3(X1, YC, ZW - CH), V3(X0, YC, ZW - CH)), (p) => [(p.x + 2.1) / PERIOD, (ZW - CH - p.z) / (2 * (ZW - CH))]); this.ceil.add(new THREE.Mesh(g, ceilT)); }
+    { const g = uvFrom(quad(V3(X0, 0, ZW - CH), V3(X1, 0, ZW - CH), V3(X1, 0, -ZW + CH), V3(X0, 0, -ZW + CH)), (p) => [(p.x + 0.9) / PERIOD, (ZW - CH - p.z) / (2 * (ZW - CH))]); this.deck.add(new THREE.Mesh(g, deckT)); }
+    const chamUV = (p: THREE.Vector3): [number, number] => [(p.z > 0 ? -p.x : p.x) / 3, (p.y < 1 ? p.y : p.y - (YC - CH)) / CH]; // text upright + unmirrored from inside
     const chams: [THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Vector3, THREE.Object3D][] = [
       [V3(X0, CH, -ZW), V3(X1, CH, -ZW), V3(X1, 0, -ZW + CH), V3(X0, 0, -ZW + CH), R],
       [V3(X0, YC - CH, -ZW), V3(X1, YC - CH, -ZW), V3(X1, YC, -ZW + CH), V3(X0, YC, -ZW + CH), R],
@@ -685,7 +685,7 @@ class Station {
 }
 
 // ============================================================ the 1985 MIDDECK
-const MZ = -1.3, MX = 2.2, MY = 2.2, MZF = 1.6;
+const MZ = -1.3, MX = 2.2, MY = 2.2, MZF = 7.0; // QA2: open side extended so the shot-6 wide never sees past the set
 const HW = { x: -MX, y: 1.3, z: -0.2, r: 0.25 };
 const lockerTex = () => ctex("buLockers", 1536, 1024, (g, r) => {
   const cw = 256, ch = 1024 / 7;
@@ -821,7 +821,7 @@ class Middeck {
   }
   update(id: number, t: number, f: number, cam: THREE.Camera) {
     const S = this.S, s = SHOTS[id - 1];
-    const gk = s.look === "gross" ? smooth((f - s.a) / 6) : 0; // the peak turns the room sickly green
+    const gk = s.place === "middeck" ? smooth((f - 998) / 18) : 0; // the peak turns the room sickly green (QA2: same 998..1016 ramp as world.ts, lands on "Wet.")
     const L3 = (a: C3, b: C3): C3 => [a[0] + (b[0] - a[0]) * gk, a[1] + (b[1] - a[1]) * gk, a[2] + (b[2] - a[2]) * gk];
     const O = this.root.position, W2 = (p: THREE.Vector3) => p.clone().add(O);
     const sd = V3(-0.86, 0.26, 0.44).normalize();

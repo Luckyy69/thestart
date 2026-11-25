@@ -14,7 +14,7 @@ import { Stage, CamInfo, lidAt, hh, q, SU, blob, prepStage } from "../bridge/cas
 import { Pen } from "../bridge/toon";
 import { W, LEAD, FPS, STATION, EARTH, ORBIT, SHOTS, V3, smooth, clamp01, BURPS, BurpKind, newmanAt, NEWMAN_X0, NEWMAN_X1, camAt } from "./story";
 import { chestPos, canPos, sodaAt } from "./props";
-import { Kit, Pose, FaceS, Face, Legs, drawAstro, layout, fxBurpRing, fxFailPuff, fxWetBlob, fxDrop, fxSweat, fxSpeed, fxSparkle, fxQuestion } from "./fx";
+import { Kit, Pose, FaceS, Face, Legs, drawAstro, layout, fxBurpRing, fxFailPuff, fxWetBlob, fxDrop, fxSweat, fxSpeed, fxSparkle, fxQuestion, fxSpray } from "./fx";
 
 type P2 = [number, number];
 export type CastId = "bean" | "crew0" | "crew1" | "crew2" | "newman";
@@ -275,14 +275,15 @@ const camVecs = (cam: CamInfo, at: V3) => {
   return { R, N };
 };
 const burpRings = (out: Stage, t: number, t0: number, at: V3, cam: CamInfo, size: number, n = 3) => {
-  const { N } = camVecs(cam, at);
+  // comic rings OUT of the mouth: born small at the lips, travel up + out to screen right, grow and fade (never over the face)
+  const { N, R } = camVecs(cam, at);
   for (let j = 0; j < n; j++) {
-    const u = (t - (t0 + 0.13 * j)) / 0.95;
+    const u = (t - (t0 + 0.12 * j)) / 0.85;
     if (u <= 0 || u >= 1) continue;
-    const a = q(Math.pow(1 - u, 1.1) * smooth(u / 0.08), 10);
+    const a = q(Math.pow(1 - u, 1.2) * smooth(u / 0.1), 10);
     if (a < 0.05) continue;
-    const s = size * (0.6 + 0.8 * u) * (1 - 0.12 * j);
-    fxCard(out, `bring|${a}`, 512, 512, (p) => fxBurpRing(p, a), add(add(at, N, 0.16 + 0.3 * u), [0, 0.03 + 0.06 * u, 0]), s, s, { soft: true });
+    const e = 1 - Math.pow(1 - u, 2), d = size * (0.15 + 1.3 * e), s = size * (0.14 + 0.5 * e) * (1 - 0.1 * j);
+    fxCard(out, `bring|${a}`, 512, 512, (p) => fxBurpRing(p, a), add(add(add(at, N, 0.08), R, 0.92 * d), [0, 0.3 * d, 0]), s, s, { soft: true });
   }
 };
 const failPuff = (out: Stage, t: number, t0: number, at: V3, cam: CamInfo) => {
@@ -356,12 +357,19 @@ export const castAt = (id: number, t: number, cam: CamInfo, light: "day" | "gold
       for (const tb of burpOf("bean", "clean")) burpRings(out, t, tb, mouth, cam, 0.42);
     } else if (id === 3) {
       question(out, t, W.nothing, W.mix - 0.3, add(head, [0, 0.38, 0]));
-      for (const tb of burpOf("bean", "wet")) wetBurp(out, t, tb, mouth, cam, 7, 0.9);
+      for (const tb of burpOf("bean", "wet")) wetBurp(out, t, tb, mouth, cam, 7, 1.25); // bigger: only ~0.8 s left in the shot
       if (on(t, W.burps)) sweat(out, t, 1, head, cam, W.burps + 0.4);
       if (on(t, W.wetburp + 0.5)) sweat(out, t, 2, head, cam, W.wetburp + 0.6);
     } else if (id === 6 || id === 7) {
       const i = IDX[r.who];
       if (id === 6) {
+        { // QA2: the pssht spray out of each can top on "opened" (props opens them at W.opened - LEAD + k * 0.06)
+          const u = (t - (W.opened - LEAD + (i - 10) * 0.06)) / 0.6;
+          if (u >= 0 && u < 1) {
+            const uq = q(u, 12), a = q(smooth(u / 0.08) * (1 - smooth((u - 0.45) / 0.55)), 10), cp = canPos(6, t, r.who).pos;
+            fxCard(out, `spray|${i}|${uq}|${a}`, 256, 256, (p) => fxSpray(p, i, uq, a), [cp[0], cp[1] + 0.27, cp[2] + 0.06], 0.42, 0.42, { soft: true });
+          }
+        }
         if (on(t, W.bubbles)) sweat(out, t, i, head, cam, W.bubbles + 0.1 + 0.07 * (i - 10));
       } else {
         for (const tb of burpOf(r.who, "wet")) wetBurp(out, t, tb, mouth, cam, i, r.who === "crew0" ? 1.15 : 0.9);
@@ -373,7 +381,7 @@ export const castAt = (id: number, t: number, cam: CamInfo, light: "day" | "gold
       const k = clamp01(v / 1.6) * smooth((t - W.hard) / 0.1);
       if (k > 0.03) for (let j = 0; j < 3; j++) {
         const vv = Math.floor(t * 10 + j) % 3, a = q(0.85 * k, 10), dS = r.dirS ?? 1;
-        fxCard(out, `speed|${vv}|${a}`, 768, 256, (p) => fxSpeed(p, vv, a), [r.A[0] - dS * (1.05 + 0.35 * j), r.A[1] + (j - 1) * 0.2, r.A[2] + 0.05], 1.3 * (0.6 + 0.4 * k), 0.42, { soft: true, rot: dS > 0 ? 0 : Math.PI });
+        fxCard(out, `speed|${vv}|${a}`, 768, 256, (p) => fxSpeed(p, vv, a), [r.A[0] - dS * (0.8 + 0.22 * j), r.A[1] + (j - 1) * 0.24, r.A[2] + 0.05], 1.05 * (0.6 + 0.4 * k), 0.42, { soft: true, rot: dS > 0 ? 0 : Math.PI });
       }
       sparkles(out, t, W.trick, add(head, [0, 0.12, 0]), cam, 2, 0.13, 0.34, 0.9);
       for (const tb of burpOf("newman", "clean")) { burpRings(out, t, tb, mouth, cam, 0.5); sparkles(out, t, tb + 0.1, add(head, [0, 0.1, 0]), cam, 3, 0.17, 0.4); }

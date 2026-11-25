@@ -346,11 +346,11 @@ export const drawAstro = (p: Pen, kit: Kit, pose: Pose, face: FaceS, light: numb
       p.arc(px, py, 10.5 * u, 10.5 * u, 215, 295, 1.6 * u, "#e04a3a");
     }
     if (kit.tape) { // name tape (screen-left chest)
-      const px = 300 - 0.52 * T.a, py = L.chin + 54, g = p.g;
-      p.poly([[px - 20 * u, py - 5.5 * u], [px + 20 * u, py - 5.5 * u], [px + 20 * u, py + 5.5 * u], [px - 20 * u, py + 5.5 * u]], "#1d2236", 1.2 * u);
+      const px = 300 - 0.4 * T.a, py = L.chin + 58, g = p.g; // well inside the torso so the whole word always shows
+      p.poly([[px - 19 * u, py - 5.5 * u], [px + 19 * u, py - 5.5 * u], [px + 19 * u, py + 5.5 * u], [px - 19 * u, py + 5.5 * u]], "#1d2236", 1.2 * u);
       const [tx, ty] = p.P(px, py + 0.4 * u);
       g.save(); g.translate(tx, ty); if (p.rot) g.rotate(p.rot[0]);
-      g.fillStyle = WHITE; g.font = `900 ${7.6 * u}px Arial Black, Arial, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(kit.tape!, 0, 0); g.restore();
+      g.fillStyle = WHITE; g.font = `900 ${7.6 * u}px Arial Black, Arial, sans-serif`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(kit.tape!, 0, 0, 33 * u); g.restore();
     }
   });
   p.inkRing(tp, ow, thick);
@@ -394,9 +394,9 @@ export const drawAstro = (p: Pen, kit: Kit, pose: Pose, face: FaceS, light: numb
 /** clean burp ring (512 x 512): a pale blue-white shock ring, alpha a */
 export const fxBurpRing = (p: Pen, a: number) => {
   const g = p.g; g.save(); g.globalAlpha = a;
-  p.arc(256, 256, 200, 200, 0, 360, 44, INK);
-  p.arc(256, 256, 200, 200, 0, 360, 28, "#dff4ff");
-  p.arc(256, 256, 200, 200, 200, 260, 10, WHITE);
+  p.arc(256, 256, 180, 180, 0, 360, 74, INK); // bold comic ring (drawn small, out of the mouth)
+  p.arc(256, 256, 180, 180, 0, 360, 48, "#dff4ff");
+  p.arc(256, 256, 180, 180, 200, 260, 16, WHITE);
   g.restore();
 };
 /** the pathetic fail puff (256 x 256): a small droopy grey cloud */
