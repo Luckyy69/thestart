@@ -384,9 +384,9 @@ export const castAt = (id: number, t: number, cam: CamInfo, light: "day" | "gold
         fxCard(out, `speed|${vv}|${a}`, 768, 256, (p) => fxSpeed(p, vv, a), [r.A[0] - dS * (0.8 + 0.22 * j), r.A[1] + (j - 1) * 0.24, r.A[2] + 0.05], 1.05 * (0.6 + 0.4 * k), 0.42, { soft: true, rot: dS > 0 ? 0 : Math.PI });
       }
       sparkles(out, t, W.trick, add(head, [0, 0.12, 0]), cam, 2, 0.13, 0.34, 0.9);
-      for (const tb of burpOf("newman", "clean")) { burpRings(out, t, tb, mouth, cam, 0.5); sparkles(out, t, tb + 0.1, add(head, [0, 0.1, 0]), cam, 3, 0.17, 0.4); }
+      for (const tb of burpOf("newman", "clean")) { burpRings(out, t, tb, mouth, cam, 0.8, 4); sparkles(out, t, tb + 0.1, add(head, [0, 0.1, 0]), cam, 3, 0.17, 0.4); }
     } else if (id === 9) {
-      for (const tb of burpOf("newman", "tiny")) burpRings(out, t, tb, mouth, cam, 0.45, 2);
+      for (const tb of burpOf("newman", "tiny")) burpRings(out, t, tb, mouth, cam, 1.0, 3);
     }
   }
   return out;

@@ -119,11 +119,11 @@ const shot = (id: number, ws: WP[]): Key[] => {
 // his chest) between the holds, easing out of / into each; y / z / fov keep the waypoint glide
 const track8 = (ks: Key[]): Key[] => ks.map((k) => {
   const w = k.f > 1258 && k.f < 1360 ? smooth((k.f - 1258) / 16) * (1 - smooth((k.f - 1340) / 26))
-    : k.f > 1370 && k.f < 1442 ? smooth((k.f - 1370) / 14) * (1 - smooth((k.f - 1416) / 26)) : 0;
+    : k.f > 1366 && k.f < 1442 ? smooth((k.f - 1366) / 10) * (1 - smooth((k.f - 1416) / 26)) : 0;
   if (w === 0) return k;
-  const nx = STATION[0] + newmanAt(8, k.f / FPS).x + (k.f < 1368 ? 0.05 : 0.15); // 2nd ride: lens a touch wider + framed back so the trailing X-ray (gas up) stays in
+  const nx = STATION[0] + newmanAt(8, k.f / FPS).x + (k.f <= 1366 ? 0.05 : 0.15); // 2nd ride: lens a touch wider + framed back so the trailing X-ray (gas up) stays in
   const lx = k.look[0] + (nx - k.look[0]) * w, dx = lx - k.look[0];
-  return { ...k, pos: [k.pos[0] + dx, k.pos[1], k.pos[2]], look: [lx, k.look[1], k.look[2]], fov: k.fov! + (k.f > 1368 ? 8 * w : 0) };
+  return { ...k, pos: [k.pos[0] + dx, k.pos[1], k.pos[2]], look: [lx, k.look[1], k.look[2]], fov: k.fov! + (k.f > 1366 ? 8 * w : 0) };
 });
 const CAMS: Record<number, Key[]> = {
   // HOOK: already moving on frame 0 (the glide began off-screen at -14): low dutch angle -> crane up + dolly in, LAND on
@@ -151,7 +151,7 @@ const CAMS: Record<number, Key[]> = {
   // TWIST: from the golden window, dolly to Newman braced at the push wall, LAND "Hard." (1258); track with his flight,
   // LAND as he sails past the sunrise window for "gravity" (1367); drift to the catch bar, LAND "perfect burp" (1499)
   8: track8(shot(8, [[1135, St(0.8, 1.5, 3.4), St(1.5, 1.3, -1.0), 38], [1180, St(-4.45, 1.35, 3.7), St(-4.9, 1.05, 0), 40], [1258, St(-4.45, 1.35, 3.7), St(-4.9, 1.05, 0), 40],
-    [1360, St(1.75, 1.25, 3.25), St(1.9, 1.1, 0), 42], [1372, St(1.75, 1.25, 3.25), St(1.9, 1.1, 0), 42],
+    [1360, St(1.75, 1.25, 3.25), St(1.9, 1.1, 0), 42], [1368, St(1.75, 1.25, 3.25), St(1.9, 1.1, 0), 42],
     [1442, St(3.37, 1.4, 3.3), St(3.5, 1.15, 0), 46], [1525, St(3.37, 1.4, 3.3), St(3.5, 1.15, 0), 46]])),
   // OUTRO: sunrise over the limb, travel in from the wide to the lit cupola window, LAND "wall to burp" (1638), drift out
   9: shot(9, [[1525, Or(-178, 14, 62), Or(-200, -2, 0), 40], [1612, Or(-198.9, 1.2, 9.0), Or(-200, -0.45, 2), 36], [1665, Or(-198.9, 1.2, 9.0), Or(-200, -0.45, 2), 36],

@@ -561,7 +561,8 @@ class Station {
     for (const x of [-3.9, -1.0, 2.2]) rail(bc, V3(x - 0.3, YC, 0.55), V3(x + 0.3, YC, 0.55), V3(0, -1, 0));
     // the CATCH BAR (Newman, shot 8): across the module at x 4.05, y 1.45, hung from the ceiling
     b.rod(gold, V3(4.05, 1.45, -0.45), V3(4.05, 1.45, 0.45), 0.024, 14);
-    for (const z of [-0.45, 0.45]) { b.rod(grey, V3(4.05, 1.45, z), V3(4.05, YC, z), 0.022); b.cyl(dark, 0.045, 0.045, 0.05, 12, TRS(4.05, YC - 0.025, z)); }
+    // both struts behind Newman's card plane (z 0) so none crosses his head
+    for (const z of [-0.45, -0.2]) { b.rod(grey, V3(4.05, 1.45, z), V3(4.05, YC, z), 0.022); b.cyl(dark, 0.045, 0.045, 0.05, 12, TRS(4.05, YC - 0.025, z)); }
     for (const z of [-0.3, 0.3]) b.cyl(imat(S, { col: "#3a5c9a" }), 0.032, 0.032, 0.1, 12, TRS(4.05, 1.45, z, 0, Math.PI / 2));
     // foot-restraint bars on the deck
     const footPad = imat(S, { col: "#4a5a74" });
