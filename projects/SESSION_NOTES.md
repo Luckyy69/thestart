@@ -26,3 +26,9 @@
 ## Videos
 - the_war_australia_lost_to_birds_2k (EmuShort), astronauts_cant_burp_2k (BurpShort), why_we_say_ow_2k (OuchShort),
   plus the earlier bridge / gimli / apollo / miners shorts.
+
+## Thumbnail style (owner's rule, from the sneeze short on)
+CLEAN: one clean frame of the main character (no effect cards, captions or watermark: PROPS noCaptions+noWatermark),
+a single 2-3 line headline at the top (white Inter Display 900, dark outline, ONE key word in yellow #ffcf3a), a dark
+gradient behind the headline, small "BEAN STORIES" bottom-left. No subtitle, no bottom text, no extra stickers.
+Template: projects/branding/thumb_sneeze2.html (render with shot_thumb.js).
