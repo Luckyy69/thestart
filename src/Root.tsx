@@ -13,6 +13,7 @@ import { TickleShort, TICKLE_FRAMES } from "./videos/tickle/Tickle";
 import { SneezeShort, SNEEZE_FRAMES } from "./videos/sneeze/Sneeze";
 import { HiccupShort, HICCUP_FRAMES } from "./videos/hiccup/Hiccup";
 import { VoiceShort, VOICE_FRAMES } from "./videos/voice/Voice";
+import { JerkShort, JERK_FRAMES } from "./videos/jerk/Jerk";
 import { Box } from "./test/Box";
 import { BridgeShort, BRIDGE_FRAMES } from "./videos/bridge/Bridge";
 
@@ -77,6 +78,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="SneezeShort" component={SneezeShort} durationInFrames={SNEEZE_FRAMES} fps={30} width={1080} height={1920} />
       <Composition id="HiccupShort" component={HiccupShort} durationInFrames={HICCUP_FRAMES} fps={30} width={1080} height={1920} />
       <Composition id="VoiceShort" component={VoiceShort} durationInFrames={VOICE_FRAMES} fps={30} width={1080} height={1920} />
+      <Composition id="JerkShort" component={JerkShort} durationInFrames={JERK_FRAMES} fps={30} width={1080} height={1920} />
     </>
   );
 };
