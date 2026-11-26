@@ -18,7 +18,7 @@ import { LensBlur, GrainEffect } from "../bridge/lensblur";
 import { GradeEffect, GRADES, GRADE_STRENGTH, gradeFor } from "../bridge/grade";
 import { Kit } from "../bridge/build";
 import { TOTAL, FLASHES, SHOTS, layersAt, dofAt } from "./story";
-import { WORDS } from "./voice";
+import { WORDS } from "./words";
 import { Captions } from "../common/Captions";
 import { Watermark } from "../common/Watermark";
 const useStoryFrame = () => useCurrentFrame();

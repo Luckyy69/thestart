@@ -24,7 +24,7 @@ import * as THREE from "three";
 import { Stage, CamInfo, lidAt, hh, q, SU, blob, prepStage } from "../bridge/cast";
 import { Pen } from "../bridge/toon";
 import { W, LEAD, FPS, ROOM, LAB, SHOTS, V3, smooth, clamp01, camAt } from "./story";
-import { WORDS } from "./voice";
+import { WORDS } from "./words";
 import { phoneGrip, phonePose, tabletTap, PROP_HOOKS } from "./props";
 import {
   KITS, Who, Pose, Face, FaceS, P2, HandK, Hold, ProfS, CatS, PROFILE, CAT_HEAD, HEAD_A,

@@ -15,7 +15,7 @@
 import * as THREE from "three";
 import { NOINK } from "../bridge/ink";
 import { ROOM, W, V3, FPS, xrayAt, micAt, camAt, shotStart, smooth, clamp01, glide } from "./story";
-import { WORDS } from "./voice";
+import { WORDS } from "./words";
 import { micPose, MIC_GRILLE, BEAN_MOUTH } from "./props";
 
 const TAU = Math.PI * 2;
