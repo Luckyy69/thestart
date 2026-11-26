@@ -48,14 +48,14 @@ type CrowdId = "mum" | "dad" | "friend" | "teacher" | "grandma" | "cat";
 /** the crowd round BEAN in shot 3 (ROOM-relative card origins), card scale, pop-in order, YEP word + colour */
 /** bub: the YEP bubble centre offset from the head (m, camera right / up) */
 export const CROWD_AT: Record<CrowdId, { at: V3; sc: number; i: number; word: string; col: string; bub: [number, number] }> = {
-  mum: { at: at(ROOM, -0.45, 0, 0.62), sc: 1.04, i: 0, word: "Yep!", col: "#ff6f8a", bub: [-0.12, 0.46] },
-  dad: { at: at(ROOM, 0.5, 0, 0.05), sc: 1.1, i: 1, word: "YEP.", col: "#2f9a6a", bub: [0.1, 0.5] },
-  grandma: { at: at(ROOM, 0.55, 0, 1.2), sc: 0.92, i: 2, word: "Yes dear", col: "#9a6ae0", bub: [0.12, 0.38] },
-  friend: { at: at(ROOM, 0.98, 0, 0.88), sc: 0.97, i: 3, word: "YUP!", col: "#ff8a1f", bub: [0.02, 0.48] },
-  teacher: { at: at(ROOM, -1.1, 0, 0.85), sc: 1.08, i: 4, word: "Indeed.", col: "#3a64f2", bub: [0.02, 0.5] },
-  cat: { at: at(ROOM, -0.85, 0.6, 0.2), sc: CAT_SC, i: 5, word: "Mrrp.", col: "#ff9a3c", bub: [0.16, 0.2] },
+  mum: { at: at(ROOM, -0.68, 0, 0.7), sc: 1.04, i: 0, word: "Yep!", col: "#ff6f8a", bub: [-0.12, 0.46] },
+  dad: { at: at(ROOM, 0.5, 0, -0.5), sc: 1.1, i: 1, word: "YEP.", col: "#2f9a6a", bub: [0.1, 0.5] },
+  grandma: { at: at(ROOM, 0.78, 0, 1.05), sc: 0.92, i: 2, word: "Yes dear", col: "#9a6ae0", bub: [0.12, 0.38] },
+  friend: { at: at(ROOM, 1.15, 0, 0.1), sc: 0.97, i: 3, word: "YUP!", col: "#ff8a1f", bub: [0.02, 0.48] },
+  teacher: { at: at(ROOM, -1.06, 0, 1.35), sc: 1.08, i: 4, word: "Indeed.", col: "#3a64f2", bub: [0.02, 0.5] },
+  cat: { at: at(ROOM, 0.38, 0, 1.6), sc: CAT_SC, i: 5, word: "Mrrp.", col: "#ff9a3c", bub: [0.16, 0.2] },
 };
-const CROWD_T0 = W.heard - 0.6;
+const CROWD_T0 = W.heard - 0.95; // QA1: all in before "heard" (670); layout above keeps BEAN clear (QA1)
 /** YEP bubbles in turn (about two up at once), all gone before "your whole life" lands */
 const yepT = (i: number) => CROWD_T0 + 0.3 + 0.27 * i, YEP_HOLD = 0.95;
 export const MEME_T = W.higher - 0.3, MEME_HUG = W.elses - 0.45;
@@ -317,10 +317,12 @@ const lightOf = (cam: CamInfo) => {
   return Math.round(Math.atan2(sy, sx) / (Math.PI / 4)) * (Math.PI / 4);
 };
 const tierOf = (cam: CamInfo, A: V3, sc: number, hy = 1.2) => tier(cam.pos.distanceTo(new THREE.Vector3(A[0], A[1] + hy * sc, A[2])) / Math.max(0.05, sc));
+const QA1_KEYS = [30, 84, 139, 217, 271, 360, 459, 494, 584, 670, 719];
 const IDX: Record<string, number> = { bean: 3, mum: 5, dad: 7, friend: 11, teacher: 13, grandma: 17, researcher: 19 };
 const drawRig = (out: Stage, r: Rig, t: number, cam: CamInfo): Frame => {
   const F = frameOf(cam.pos, r.A, r.sc), [w, h, k] = tierOf(cam, r.A, r.sc), light = lightOf(cam);
-  const lid = r.face.e === "meme" ? 0 : q(lidAt(t, IDX[r.who] * 7, r.swaps), 2);
+  const fN = Math.round(t * FPS), onKey = r.who === "bean" && fN < 745 && QA1_KEYS.some((k) => Math.abs(fN - k) <= 2); // QA1: eyes open on key words
+  const lid = r.face.e === "meme" || onKey ? 0 : q(lidAt(t, IDX[r.who] * 7, r.swaps), 2);
   const pose = r.pose, face = r.face, kit = KITS[r.who], ph = r.phones;
   out.places.push({
     key: `vo|${r.who}|${fkey(pose)}|${fkey(face)}|${lid}|${q(light, 10)}|${ph ? 1 : 0}`,
@@ -343,12 +345,13 @@ const camVecs = (cam: CamInfo, P: V3) => {
 };
 const at3 = (P: V3, R: V3, U: V3, N: V3, x: number, y: number, z: number) => add(add(add(P, R, x), U, y), N, z);
 /** keep a camera-facing card (centre P, size w x h) inside the frame: clear of the edges and the watermark band */
-let VIEW: { pos: THREE.Vector3; fwd: THREE.Vector3; right: THREE.Vector3; up: THREE.Vector3; th: number } | null = null;
+let VIEW: { pos: THREE.Vector3; fwd: THREE.Vector3; right: THREE.Vector3; up: THREE.Vector3; th: number; whip?: boolean } | null = null;
 const setView = (id: number, t: number, cam: CamInfo) => {
   const s = SHOTS[id - 1], c = camAt(id, Math.max(s.a, Math.min(s.b, frameNo(t))));
   const fwd = new THREE.Vector3(c.look[0] - c.pos[0], c.look[1] - c.pos[1], c.look[2] - c.pos[2]).normalize();
   const right = cam.right.clone().normalize(), up = new THREE.Vector3().crossVectors(right, fwd).normalize();
-  VIEW = { pos: cam.pos.clone(), fwd, right, up, th: Math.tan(THREE.MathUtils.degToRad(c.fov / 2)) };
+  const fn = frameNo(t), whip = (id === 3 && fn > SHOTS[3].a - 16) || (id === 4 && fn < SHOTS[3].a + 6); // the 3->4 whip: let off-frame cards fly off with the world
+  VIEW = { pos: cam.pos.clone(), fwd, right, up, th: Math.tan(THREE.MathUtils.degToRad(c.fov / 2)), whip };
 };
 const fitS = (P: V3, w: number, h: number): [V3, number] => {
   if (!VIEW) return [P, 0];
@@ -356,7 +359,8 @@ const fitS = (P: V3, w: number, h: number): [V3, number] => {
   if (z < 0.3) return [P, 0];
   const hy = VIEW.th * z, hx = hy * (9 / 16), x = v.dot(VIEW.right), y = v.dot(VIEW.up);
   const mx = hx * 0.94 - w / 2, top = hy * 0.76 - h / 2, bot = -hy * 0.9 + h / 2;
-  const nx = mx > 0 ? Math.max(-mx, Math.min(mx, x)) : 0, ny = top > bot ? Math.max(bot, Math.min(top, y)) : y;
+  let nx = mx > 0 ? Math.max(-mx, Math.min(mx, x)) : 0, ny = top > bot ? Math.max(bot, Math.min(top, y)) : y;
+  if (VIEW.whip) { const g = 1 - smooth((Math.abs(x) / hx - 0.9) / 0.25); nx = x + (nx - x) * g; ny = y + (ny - y) * g; } // whip: release the clamp as the card leaves the frame
   return [add(add(P, [VIEW.right.x, VIEW.right.y, VIEW.right.z], nx - x), [VIEW.up.x, VIEW.up.y, VIEW.up.z], ny - y), Math.hypot(nx - x, ny - y)];
 };
 const fit = (P: V3, w: number, h: number): V3 => fitS(P, w, h)[0];
@@ -483,6 +487,7 @@ export const castAt = (id: number, t: number, cam: CamInfo, light: "day" | "gold
     if (t >= MEME_T - LEAD) { // THE PEAK: a heart halo behind his head, hearts streaming up, sparkles
       const { R, U, N } = camVecs(cam, head), hk = env(t, MEME_T - LEAD, 99, 0.25, 0.3), pulse = 1 + 0.06 * Math.sin((t - MEME_T) * 9);
       fxCard(out, "halo", 512, 512, fxHeartHalo, at3(head, R, U, N, 0, 0.04, -0.3), 1.05 * hk * pulse, 1.05 * hk * pulse, { rot: (t - MEME_T) * 0.4 });
+      fxCard(out, "heart|#ff3d7f", 256, 256, (p) => fxHeart(p, "#ff3d7f"), at3(head, R, U, N, -0.03, 0.06, -0.22), 1.28 * hk * pulse, 1.28 * hk * pulse); // the big upright heart his head sits in
       floatHearts(out, t, MEME_T, add(head, [0, -0.12, 0]), cam, 9, 61, 0.13, 0.42, hk);
       sparkles(out, t, MEME_T + 0.1, 99, head, cam, 0.45, 7, 67, 0.09);
     }

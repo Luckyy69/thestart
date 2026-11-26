@@ -60,7 +60,7 @@ export const phoneAt = (id: number, t: number) => (id === 1 ? { play: smooth((t 
 /** X-ray (shot 2): show, air path, bone path, "straight to the ears", deeper */
 export const xrayAt = (id: number, t: number) => (id === 2 ? {
   show: smooth((t - (shotStart(2) - 0.2)) / 0.4), twice: smooth((t - (W.twice - 0.2)) / 0.3), air: smooth((t - (W.air - 0.2)) / 0.6),
-  bone: smooth((t - (W.skull - 0.2)) / 0.6), ears: smooth((t - (W.ears - 0.3)) / 0.4), deep: smooth((t - (W.deeper - 0.15)) / 0.4),
+  bone: smooth((t - (W.skull - 0.2)) / 0.6), ears: smooth((t - (W.ears - 0.3)) / 0.4), deep: smooth((t - (W.deeper - 0.35)) / 0.35), /* QA1: big by "deeper" (494) */
 } : { show: 0, twice: 0, air: 0, bone: 0, ears: 0, deep: 0 });
 /** microphone (shot 3): mic in, catch the air path, the crowd of "everyone" pops in */
 export const micAt = (id: number, t: number) => (id === 3 ? { mic: smooth((t - (W.microphone - 0.4)) / 0.5) * (1 - smooth((t - (W.weird - 0.2)) / 0.4)), catch: smooth((t - (W.airpart - 0.2)) / 0.4), crowd: smooth((t - (W.heard - 0.6)) / 0.5), life: smooth((t - (W.life - 0.2)) / 0.4) } : { mic: 0, catch: 0, crowd: 0, life: 0 });
@@ -71,7 +71,7 @@ export const ratingAt = (id: number, t: number) => {
   const show = smooth((t - (W.study - 0.3)) / 0.5);
   const bars = RATING_BASE.map((b, i) => (i === 3 ? 0 : b * smooth((t - (W.rated - 0.2 + 0.25 * i)) / 0.5)));
   const own = smooth((t - (W.higher - 0.25)) / 0.6);
-  bars[3] = 0.95 * own;
+  bars[3] = 0.86 * own; // QA: the crown stays under the D badge
   return { show, bars, own, playingD: smooth((t - (W.own - 0.3)) / 0.3) };
 };
 
@@ -131,7 +131,7 @@ const hold = (f0: number, f1: number, Fr: F, fov: number, o?: Opt): WP[] => [[f0
 const key = (f: number, Fr: F, fov: number, o?: Opt): WP => [f, Fr[0], Fr[1], fov, o];
 
 // ---- ROOM (shots 1, 2, 3, 5): BEAN at Ro(0,0,0), head Ro(0,1.46,0), hair tip ~2.1; phone in his screen-right hand ----
-const H_OPEN = fr(Ro, 0.12, 0, 0.45, 2.3, 38, 14, 0.05);              // frame 0: a touch wider, off to the right ...
+const H_OPEN = fr(Ro, 0.12, 0, 0.6, 2.3, 38, 14, 0.05); // QA1: tighter hook open (less empty rug)              // frame 0: a touch wider, off to the right ...
 const H_REC = fr(Ro, 0.1, 0, 0.75, 2.25, 36, 6, 0.04, 1.35);           // "recordings" (30): horrified + phone + "hello?"
 const H_NEWS = fr(Ro, 0.06, 0, 0.75, 2.25, 34, -4, 0.03, 1.3);        // "news" (84): dread, closer
 const H_SWING = fr(Ro, 0.05, 0.05, 0.85, 2.2, 36, 48, 0.03, 1.4);     // (pass-through) the orbit round his screen-right side
@@ -152,7 +152,7 @@ const L_WIDE = frT(La, 0, -0.3, 3.1, 2.9, 44);         // the whip lands: the bo
 const L_STUDY = frT(La, 0, -0.2, 2.95, 2.2, 40);       // "study" (803): BEAN in the booth + the board
 const L_THERE = frT(La, 0.6, -0.1, 2.8, 2.2, 38, 0);    // "there" (917): BEAN + the sly researcher
 const L_OWN = frT(La, 0.08, 0.1, 2.85, 1.9, 36, 0, 0.02);       // "own voice" (959): BEAN, the tablet, D "???" on the board
-const L_MEME = fr(La, 0.08, 0.1, 0.8, 2.6, 34, 0, 0.0, 1.7);         // "else's" (1033): THE MEME FACE + the gold D bar + crown
+const L_MEME = fr(La, 0.1, 0.1, 0.8, 2.6, 34, 15, 0.0, 1.7);         /* QA: az 15 parallaxes the gold D bar out from behind his head */         // "else's" (1033): THE MEME FACE + the gold D bar + crown
 /** MATCH: one head-relative framing for both places (shot 4 ends on it, shot 5 starts on it) */
 const FACE = (h: V3) => fr(at(h), 0.08, 0, -0.86, 0.79, 36, 5, 0.03, 1.5);
 const L_HEAD = La(0, 1.30, 0.4), R_HEAD = Ro(0, 1.46, 0);

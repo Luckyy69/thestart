@@ -84,7 +84,7 @@ export const phonePose = (id: number, t: number): PhonePose => {
 export const phoneGrip = (id: number, t: number): V3 => phonePose(id, t).grip;
 /** the "hello" bubble: 0..1 shown (scales in/out, never pops) */
 export const bubbleAt = (id: number, t: number) => {
-  if (id === 1) return smooth((t - 0.32) / 0.22) * (1 - smooth((t - (W.bad - 0.05)) / 0.3));
+  if (id === 1) return smooth((t - 0.1) / 0.22) * (1 - smooth((t - (W.bad - 0.05)) / 0.3));
   if (id === 5) return smooth((t - (W.hate + 0.05)) / 0.25);
   return 0;
 };
@@ -619,8 +619,8 @@ export class Props {
     const camQ = cam.quaternion, right = new THREE.Vector3(1, 0, 0).applyQuaternion(camQ), up = new THREE.Vector3(0, 1, 0).applyQuaternion(camQ), back = new THREE.Vector3(0, 0, 1).applyQuaternion(camQ);
     const e = bs < 1 ? bs * bs * (3.4 - 2.4 * bs) : 1; // slight overshoot
     const top = new THREE.Vector3(...P.pos).add(new THREE.Vector3(0, PHONE_H / 2, 0).applyEuler(this.phone.rotation));
-    const W0 = warm ? 0.2 : 0.22;
-    const c = top.addScaledVector(up, 0.02 + 0.075 * e).addScaledVector(right, -0.09 * e).addScaledVector(back, 0.05);
+    const W0 = warm ? 0.2 : 0.29; // QA1: shot 1 bigger + clear of his cheek (hook)
+    const c = top.addScaledVector(up, 0.02 + (warm ? 0.075 : 0.1) * e).addScaledVector(right, (warm ? -0.09 : 0.03) * e).addScaledVector(back, 0.05);
     this.bubble.position.copy(c); this.bubble.quaternion.copy(camQ);
     const jig = warm ? 0.03 * Math.sin(t * 3) : 0.07 * Math.sin(t * 31) * (hash(Math.floor(t * 15)) - 0.2);
     this.bubble.rotateZ(jig + (warm ? 0.05 : 0.08));

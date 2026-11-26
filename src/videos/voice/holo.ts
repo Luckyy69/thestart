@@ -330,7 +330,8 @@ class XrayHolo {
     this.drawBone(g, q, t, X);
     this.drawAir(g, q, t, X, open);
     this.drawWave(g, q, t, X);
-    this.drawLabels(g, q, t, X);
+    const lo = 1 - smooth((t - (W.deeper + 0.35)) / 0.3); // QA1: labels clear before the push into the head (2->3)
+    if (lo > 0.01) { g.save(); q.save(); g.globalAlpha *= lo; q.globalAlpha *= lo; this.drawLabels(g, q, t, X); g.restore(); q.restore(); }
     g.restore(); q.restore();
     if (show > 0.001 && show < 0.999) { // scan line
       const a = Math.sin(Math.PI * show), lg = g.createLinearGradient(0, wy - 26, 0, wy + 26);
@@ -440,9 +441,9 @@ class XrayHolo {
       const u = cyc(t * 1.3 + i / 3), a = talk * Math.sin(Math.PI * u) * (0.5 + 0.5 * open);
       ring(g, q, mx + (0.03 + 0.09 * u) * S * this.dir, my, this.dir > 0 ? 0 : Math.PI, (0.025 + 0.04 * u) * S, 0.011 * S, a, BLUE, BLUE_HI, 0.85);
     }
-    const k = X.air;
+    const k = Math.max(X.air, smooth((t - (W.air - 0.75)) / 0.4)); // QA1: the loop reads fully by "air" (271)
     if (k < 0.01) return;
-    const front = glide(clamp01((t - (W.air - 0.25)) / 1.0));
+    const front = glide(clamp01((t - (W.air - 0.7)) / 0.6));
     const track = polySub(p, 0, front); // guide track (dotted) up to the front
     g.save(); g.globalAlpha = 0.6 * k; g.setLineDash([3, 26]); g.lineCap = "round"; g.strokeStyle = BLUE_HI; g.lineWidth = 11; strokePts(g, track); g.restore();
     q.save(); q.globalAlpha = 0.35 * k; q.strokeStyle = BLUE; q.lineWidth = 30; strokePts(q, track); q.restore();
@@ -465,10 +466,10 @@ class XrayHolo {
     }
   }
   private drawBone(g: Ctx, q: Ctx, t: number, X: XSt) {
-    const k = X.bone;
+    const k = Math.max(X.bone, smooth((t - (W.skull - 0.7)) / 0.4)); // QA1: the bone path reads by "skull" (360)
     if (k < 0.01) return;
     const S = this.b.S, p = this.bone;
-    const front = glide(clamp01((t - (W.skull - 0.25)) / 0.9));
+    const front = glide(clamp01((t - (W.skull - 0.65)) / 0.7));
     const speed = 1 + 0.8 * X.ears;
     const n = 90, amp = 0.012 * S * (0.7 + 0.5 * X.ears), lam = 0.03 * S, pts: P2[] = []; // the buzzing zigzag
     for (let i = 0; i <= n; i++) {
@@ -530,7 +531,7 @@ class XrayHolo {
         g.arc(xx - sgn * 0.05 * S, cy, 0.05 * S + i * 0.01 * S, sgn > 0 ? -0.8 : Math.PI - 0.8, sgn > 0 ? 0.8 : Math.PI + 0.8); g.stroke();
         g.strokeStyle = ORANGE_HI; g.lineWidth = 8; g.stroke(); g.restore();
       }
-      pill(g, q, cx, cy - h / 2 - 0.04 * S, 0.27 * S, 0.085 * S, ORANGE, "DEEPER", X.deep, t, undefined, "#ffffff", 0.6, ORANGE, bump(t, W.deeper, W.deeper + 0.4, 0.1));
+      pill(g, q, cx, cy - h / 2 - 0.04 * S, 0.27 * S, 0.085 * S, ORANGE, "DEEPER", X.deep * (1 - smooth((t - (W.deeper + 0.35)) / 0.3)), t, undefined, "#ffffff", 0.6, ORANGE, bump(t, W.deeper, W.deeper + 0.4, 0.1));
     }
   }
   private drawLabels(g: Ctx, q: Ctx, t: number, X: XSt) {
@@ -540,8 +541,8 @@ class XrayHolo {
     pill(g, q, ...P(...XL.earTag), 0.19 * S, 0.085 * S, "#e8f8ff", "EAR", earK, t, P(...XL.ear), INK, 0.6, CYAN, bump(t, W.ears - 0.15, W.ears + 0.45, 0.12));
     // AIR / BONE
     const at = polyAt(this.air, 0.07);
-    pill(g, q, ...P(...XL.airTag), 0.19 * S, 0.085 * S, BLUE, "AIR", clamp01((t - (W.air - 0.05)) / 0.45), t, [at.x, at.y + 0.02 * S], "#ffffff", 0.6, BLUE, bump(t, W.air - 0.05, W.air + 0.5, 0.15));
-    pill(g, q, ...P(...XL.boneTag), 0.235 * S, 0.085 * S, ORANGE, "BONE", clamp01((t - (W.skull - 0.05)) / 0.45), t, P(0.1, -0.2), "#ffffff", 0.6, ORANGE, bump(t, W.skull - 0.05, W.skull + 0.5, 0.15) + bump(t, W.bones - 0.1, W.bones + 0.4, 0.12));
+    pill(g, q, ...P(...XL.airTag), 0.19 * S, 0.085 * S, BLUE, "AIR", clamp01((t - (W.air - 0.45)) / 0.4), t, [at.x, at.y + 0.02 * S], "#ffffff", 0.6, BLUE, bump(t, W.air - 0.1, W.air + 0.5, 0.15));
+    pill(g, q, ...P(...XL.boneTag), 0.235 * S, 0.085 * S, ORANGE, "BONE", clamp01((t - (W.skull - 0.45)) / 0.4), t, P(0.1, -0.2), "#ffffff", 0.6, ORANGE, bump(t, W.skull - 0.1, W.skull + 0.5, 0.15) + bump(t, W.bones - 0.1, W.bones + 0.4, 0.12));
     // title: x2 / YOU HEAR YOURSELF TWICE (blue half | orange half = the two routes); never mirrored
     const k = X.twice;
     if (k > 0.01) {
@@ -641,11 +642,11 @@ class MicHolo {
       const mid = at(0.5); // AIR pill above the stream
       pill(g, q, mid.x - side * 0.03 * S, mid.y + 0.125 * S, 0.17 * S, 0.075 * S, BLUE, "AIR", clamp01((t - (W.airpart - 0.05)) / 0.4), t, undefined, "#ffffff", 0.6, BLUE, bump(t, W.airpart, W.airpart + 0.45, 0.12));
       // BONE struck out on the far side of his head
-      const bk = clamp01((t - (W.part - 0.05)) / 0.4);
+      const bk = clamp01((t - (W.part - 0.4)) / 0.4); // QA1: in by "part" (584)
       if (bk > 0.01) {
         const [hx, hy] = P(mo[0] - side * 0.24, mo[1] + 0.31), w = 0.21 * S, h = 0.075 * S;
         pill(g, q, hx, hy, w, h, ORANGE, "BONE", bk, t, undefined, "#ffffff", 0.58, ORANGE);
-        const sk = back(clamp01((t - (W.part + 0.15)) / 0.35)); // a red "no" badge
+        const sk = back(clamp01((t - (W.part - 0.1)) / 0.35)); // a red "no" badge
         if (sk > 0.01) {
           const r = h * 0.62, bx2 = hx + w / 2 + r * 0.35, by2 = hy - h * 0.1;
           g.save(); g.translate(bx2, by2); g.scale(sk, sk); g.rotate(0.15);
