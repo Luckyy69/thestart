@@ -119,7 +119,7 @@ export const HiccupShort: React.FC = () => {
   return (
     <AbsoluteFill style={{ background: "#cfe3f2" }}>
       {layersAt(f).map((l, i) => <ShotView key={i ? "over" : "base"} id={l.id} kit={kit} alpha={l.alpha} />)}
-      {flash > 0 && <AbsoluteFill style={{ background: "#ffffff", opacity: flash }} />}
+      {flash > 0 && <AbsoluteFill style={{ background: "#ffe6b4", opacity: flash }} />}
       {(getInputProps() as { noCaptions?: boolean }).noCaptions ? null : <Captions words={WORDS} />}
       {(getInputProps() as { noWatermark?: boolean }).noWatermark ? null : <Watermark />}
     </AbsoluteFill>

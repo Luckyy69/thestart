@@ -149,7 +149,7 @@ const TANK_IN: F = [Ki(-0.65, 1.12, -0.37), Ki(-0.65, 1.11, -0.78)]; // ... then
 // MORPH MATCH: the same head-relative framing for the tadpole (shot 3) and BEAN (shot 4)
 // (frame 2.65 m tall at the head, head at ~42 % from the top: the whole gill diagram fits, BEAN is a full-figure medium)
 const MATCH = (o: (x: number, y: number, z: number) => V3, hx: number, hy: number): F => { const H = 2.65, d = H / (2 * Math.tan((40 * Math.PI) / 360)), ly = hy - 0.08 * H; return [o(hx, ly + 0.02 * d, d), o(hx, ly, 0)]; };
-const K_MORPH = MATCH(Ki, -0.09, 1.46);                              // BEAN's head 0.09 m right of centre, like the tadpole's
+const K_MORPH = MATCH(Ki, -0.2, 1.39); /* QA: measured head-on-head with the shot-3 hybrid */                             // BEAN's head 0.09 m right of centre, like the tadpole's
 const K_IT = fr(Ki, 0.05, 0, 0.6, 2.2, 36, -8, 0.04);                // "it" (736): HIC
 const K_CAN = fr(Ki, 0.16, 0, 0.75, 2.18, 34, 14, 0.04);             // "drink" (794): the betrayed look at the lifted can
 const K_STOP = fr(Ki, 0.05, 0, 0.9, 2.38, 34, 4, 0.03);             // "stop" (874): worried face, hic hic, sweat

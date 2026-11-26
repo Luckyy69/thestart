@@ -80,7 +80,7 @@ export const TADPOLE_LAYOUT = {
   box: { x0: -0.48, x1: 0.7, y0: -0.34, y1: 0.42 },
   mouth: [0.36, -0.04] as P2, throat: [0.2, -0.05] as P2, gills: [0.03, 0.03] as P2, eye: [0.24, 0.1] as P2,
   inset: { c: [0.11, -0.165] as P2, r: 0.145 }, door: [0.158, -0.093] as P2, lungs: [0.1, -0.2] as P2,
-  gillTag: { c: [-0.3, -0.02] as P2, w: 0.2, h: 0.064 }, dryTag: { c: [-0.15, -0.235] as P2, w: 0.22, h: 0.078 },
+  gillTag: { c: [-0.29, -0.02] as P2, w: 0.28, h: 0.09 }, dryTag: { c: [-0.2, -0.235] as P2, w: 0.3, h: 0.105 }, // QA: 1.4x, readable on a phone
 };
 export const gillPoint = (id: number, t: number, x: number, y: number, camPos: V3): V3 => {
   const p = tadpolePose(id, t);
@@ -775,11 +775,12 @@ class Odometer {
   private blurTex: THREE.CanvasTexture[] = [0, 1, 2, 3].map((b) => drumTex(b));
   private crank = new THREE.Group();
   private tally = new Plane(1536, 192); private tallyLast = -1;
-  private glint: THREE.Mesh; private sparks: THREE.Sprite[] = []; private flash: THREE.Sprite;
+  private glint: THREE.Mesh; private sparks: THREE.Sprite[] = []; private flash: THREE.Sprite; private brassMs: THREE.MeshPhongMaterial[] = [];
   constructor() {
     for (const tx of this.blurTex) tx.anisotropy = 8;
     const brass = twoTone(new THREE.MeshPhongMaterial({ color: "#ffc650", specular: "#fff3c8", shininess: 55, emissive: new THREE.Color(0.1, 0.065, 0.015) }));
     const brassDk = twoTone(new THREE.MeshPhongMaterial({ color: "#dc9632", specular: "#ffe0a0", shininess: 40, emissive: new THREE.Color(0.07, 0.04, 0.01) }));
+    this.brassMs = [brass as THREE.MeshPhongMaterial, brassDk as THREE.MeshPhongMaterial]; // QA2: the peak gleam
     const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number) => new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0).translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
     const frame: THREE.BufferGeometry[] = [ // front frame round the drum window
       box(-HW, HW, WIN, HH, FRONT0, FRONT1), box(-HW, HW, -HH, -WIN, FRONT0, FRONT1),
@@ -832,13 +833,15 @@ class Odometer {
     const O = osborneAt(id, t), show = id === 5 ? O.show : 0;
     this.group.visible = show > 0.002;
     if (!this.group.visible) return;
-    const p = odoPos(id, t), F = frameFrom(p, cam.position);
+    const pk = id === 5 ? smooth((t - (W.hics - 0.05)) / 0.3) : 0; // QA2: on "hics" the odometer gleams + pops a touch bigger
+    const p0 = odoPos(id, t), p: V3 = id === 5 ? [p0[0] + 0.05, p0[1] + 0.06 + 0.015 * pk, p0[2]] : p0, F = frameFrom(p, cam.position); // QA2: raised so the meme hat clears the tally plate
     let jy = 0, jr = 0; // jolts on every Osborne hic
     for (const h of OSB_HICS) { const d = t - h[0]; if (d > 0 && d < 1.2) { const e = Math.exp(-d * 6) * h[2]; jy += 0.05 * e * Math.sin(d * 26); jr += 0.07 * e * Math.sin(d * 21 + 1); } }
     const drop = 1 - glide(show); // drops in from above with a bounce
     this.group.position.set(p[0], p[1] + 0.5 * drop * drop + jy + 0.008 * Math.sin(t * 1.7), p[2]);
     this.group.rotation.set(-0.06 + 0.04 * Math.sin(t * 1.1), F.yaw + 0.05 * Math.sin(t * 0.8), jr + 0.25 * drop);
-    this.group.scale.setScalar(ODO_SCALE * (0.6 + 0.4 * back(show)));
+    this.group.scale.setScalar(ODO_SCALE * (0.6 + 0.4 * back(show)) * (1 + 0.08 * back(pk)));
+    this.brassMs.forEach((bm, i) => bm.emissive.setRGB(...((i ? [0.07, 0.04, 0.01] : [0.1, 0.065, 0.015]).map((c, k) => c + pk * [0.22, 0.15, 0.04][k] * (i ? 0.6 : 1)) as [number, number, number])));
     const v = odoValue(id, t), v0 = odoValue(id, t - 1 / FPS);
     for (let i = 0; i < 9; i++) {
       const dig = drumDigit(v, i), sp = Math.abs(v - v0) / Math.pow(10, 8 - i);

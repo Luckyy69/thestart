@@ -1238,7 +1238,7 @@ class Farm {
       this.pad = new THREE.Mesh(clean(pg, new THREE.Color("#e8dcc0")), m.paint); this.pad.position.set(CAL.x, CAL.py, z + 0.025); this.pad.castShadow = true; this.pad.receiveShadow = true; R.add(this.pad);
       const pageMat = twoTone(new THREE.MeshLambertMaterial({ map: this.calTex.tex, emissive: new THREE.Color(1, 1, 1), emissiveMap: this.calTex.tex, emissiveIntensity: 0.22 }));
       this.calPage = new THREE.Mesh(new THREE.PlaneGeometry(CAL.pw, CAL.ph), pageMat); this.calPage.receiveShadow = true; R.add(this.calPage);
-      const back = twoTone(new THREE.MeshLambertMaterial({ color: "#efe4cc" }));
+      const back = twoTone(new THREE.MeshLambertMaterial({ color: "#efe4cc", emissive: new THREE.Color(0.38, 0.34, 0.27) })); // QA2: flying page backs read cream, not grey
       for (let k = 0; k < PAGES; k++) {
         const tex = new PageTex(256), g = new THREE.Group();
         const mat = twoTone(new THREE.MeshLambertMaterial({ map: tex.tex, emissive: new THREE.Color(1, 1, 1), emissiveMap: tex.tex, emissiveIntensity: 0.22 }));

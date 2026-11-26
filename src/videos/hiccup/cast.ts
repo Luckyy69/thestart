@@ -19,7 +19,7 @@
 import * as THREE from "three";
 import { Stage, CamInfo, lidAt, hh, q, SU, blob, prepStage } from "../bridge/cast";
 import { Pen } from "../bridge/toon";
-import { W, LEAD, FPS, KITCHEN, POND, FARM, SHOTS, HICS, V3, smooth, clamp01, camAt, shadowAt, xrayAt, tadpoleAt, morphAt, osborneAt } from "./story";
+import { W, LEAD, FPS, KITCHEN, POND, FARM, SHOTS, HICS, V3, smooth, clamp01, camAt, shadowAt, xrayAt, tadpoleAt, morphAt, osborneAt, shotStart } from "./story";
 import { canPose, canAxis } from "./props";
 import { HOLO_HOOKS } from "./holo";
 import {
@@ -166,8 +166,10 @@ const bean1 = (t: number): Rig => {
 };
 const bean2 = (t: number): Rig => {
   const base = () => bp([192, 648], [408, 640]);
+  const t2 = shotStart(2); // QA: start in shot 1's end pose + face so the 1->2 scan-wipe dissolve shows ONE BEAN
   const pose0 = segPose(t, [
-    [-9, base],
+    [-9, () => ({ ...lowPose(), headTilt: -2, lean: -0.02 })],
+    [t2 + 0.25, base, 0.6],
     [W.gasp - 0.22, () => ({ ...bp([184, 626], [416, 618]), shrug: 14, headDy: -8, headTilt: -2 })],                      // the gasp: shoulders up
     [W.shut - 0.15, () => ({ ...bp([190, 636], [410, 628]), shrug: 8, headDy: -3 }), 0.12],                              // throat slams
     [W.hic + 0.5, () => ({ ...bp([148, 520], [452, 508]), hk: ["palm", "grip"], ha: [-2.75, canGrip(UP)], shrug: 22, headTilt: 3 })], // why? a shrug
@@ -175,11 +177,11 @@ const bean2 = (t: number): Rig => {
   // the diaphragm spasm (5.76): a little silent twitch
   const sp = joltEnv(t - (W.spasming - LEAD), 0.12);
   const pose1 = sp > 0.001 ? withJolt(pose0, { j: sp, u: 0, size: 0.45, i: 0, mini: true }) : pose0;
-  const e = faceAt(t, [[-9, "curious"], [W.spasming - 0.1, "uhoh"], [W.gasp - 0.12, "gasp"], [W.shut - 0.12, "clamp"], [W.hic + 0.5, "shrug"]]);
-  const [pose, face] = beanHic(2, t, pose1, { e, shake: frameNo(t) });
+  const e = faceAt(t, [[-9, "sideeye"], [t2 + 0.4, "curious"], [W.spasming - 0.1, "uhoh"], [W.gasp - 0.12, "gasp"], [W.shut - 0.12, "clamp"], [W.hic + 0.5, "shrug"]]);
+  const [pose, face] = beanHic(2, t, pose1, { e, shake: frameNo(t), look: e === "sideeye" ? [1, 0] : undefined });
   const x = xrayAt(2, t);
   void x;
-  return beanRig(pose, face, [W.spasming - 0.1, W.gasp - 0.12, W.hic + 0.5], beanLift(2, t));
+  return beanRig(pose, face, [t2 + 0.4, W.spasming - 0.1, W.gasp - 0.12, W.hic + 0.5], beanLift(2, t));
 };
 const bean4 = (t: number): Rig => {
   const tb = HICS[2][0] - LEAD;
@@ -217,14 +219,14 @@ const osb5 = (t: number): Rig => {
   ]);
   // the stoop (age), the meme tremble
   let pose: Pose = { ...pose0, drop: (pose0.drop ?? 0) + 10 * age, headDy: (pose0.headDy ?? 0) + 10 * age, shrug: (pose0.shrug ?? 0) - 7 * age, headTilt: (pose0.headTilt ?? 0) + 3 * age };
-  if (meme) pose = { ...pose, shake: (f % 2 ? 1.6 : -1.6) * m, hatUp: q(lerp(0, 30 + 3 * Math.sin(t * 9), m), 2) };
+  if (meme) pose = { ...pose, shake: (f % 2 ? 1.6 : -1.6) * m, hatUp: q(lerp(0, 20 + 3 * Math.sin(t * 9), m), 2) }; // QA2: 30 -> 20, clears the odometer
   pose = withJolt(pose, h, meme ? 1.4 : 1);
   let e: Face = faceAt(t, [[-9, "focus"], [W.farmer - 0.15, "proud"], [W.osborne + 0.45, "focus"], [W.kept - 0.05, "grumpy"], [W.years - 0.1, "tired"], [W.million - 0.45, "exhausted"]]);
   if (h.i >= 0 && h.i < 100 && h.u > HIC_FACE_T(h) && h.u < 1.1 && HICS[h.i][0] < W.kept) e = "puzzled";
   let face: FaceS = { e, age, shake: f, look: e === "focus" ? [0.9, 0.4] : e === "proud" ? [0, 0] : undefined };
   if (meme) face = { e: "meme", age, shake: f, k: q(Math.min(1.12, m * (1 + 0.12 * Math.sin(clamp01((t - MEME_T) / 0.25) * Math.PI))), 50) };
   else if (h.i >= 0 && h.u < HIC_FACE_T(h)) face = { e: h.mini ? "wince" : "hic", age, shake: f, k: h.j };
-  const lift = (0.04 * h.j * h.size) * (meme ? 2.2 : 1);
+  const lift = (0.04 * h.j * h.size) * (meme ? 1.2 : 1); // QA2: 2.2 -> 1.2, the giant-hic hop no longer shoves the hat into the odometer
   return { who: "osborne", pose, face, swaps: [W.farmer - 0.15, W.osborne + 0.45, W.kept - 0.05, W.years - 0.1], A: [OSB_AT[0], OSB_AT[1] + lift, OSB_AT[2]], sc: OSB_SC, flutter: meme ? Math.sin(t * 40) * m : 0 };
 };
 

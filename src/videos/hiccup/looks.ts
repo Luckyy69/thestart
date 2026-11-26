@@ -35,7 +35,7 @@ const pond = mk(day, { az: 20, el: 60, lit: [1.05, 1.36, 1.12], shade: [0.1, 0.3
   charTint: [0.95, 1.02, 0.98], sideTint: [0.8, 0.95, 0.98], sunCol: "#d8ffd0", sunI: 4.0, sky: "#60c0b0", ground: "#204030", hemiI: 0.45, fog: "#3e9c8c", actorShadow: true });
 const farm = mk(gold, { az: 40, el: 8, lit: [1.98, 1.5, 0.92], shade: [0.31, 0.25, 0.4], lift: [0.05, 0.04, 0.05], term: 0.07,
   charTint: [1.0, 0.84, 0.64], sideTint: [0.86, 0.8, 0.94], sunCol: "#ffc888", sunI: 5.5, sky: "#e8c8a0", ground: "#7a6040", hemiI: 0.42, fog: "#ead2a4", actorShadow: true });
-const peak = mk(gold, { az: 40, el: 8, lit: [2.3, 1.58, 1.28], shade: [0.42, 0.24, 0.4], lift: [0.07, 0.03, 0.05], term: 0.07,
+const peak = mk(gold, { az: 40, el: 8, lit: [2.3, 1.62, 1.28], shade: [0.5, 0.32, 0.42], lift: [0.1, 0.06, 0.05], term: 0.07, // QA2: shade + lift up (the barn wall read muddy maroon)
   charTint: [1.0, 0.86, 0.76], sideTint: [0.95, 0.8, 0.9], sunCol: "#ffb0a0", sunI: 6.5, sky: "#f0c0b0", ground: "#7a5050", hemiI: 0.45, fog: "#f6c8b4", actorShadow: true });
 const out = (L: LightPreset, sat: number, sky: LookDef["sky"], near = 60, far = 900): LookDef =>
   ({ light: L, sky, fog: [L.fog, near, far], sat, bounce: LOOK.golden.bounce, sunAz: L.az, sunEl: L.el, sunDisc: false, near: 0.05, shadowMin: 10 });
