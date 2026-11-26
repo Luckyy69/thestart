@@ -388,7 +388,7 @@ export class Eras {
     // ---- olive trees in Greek-key pots, bench, amphorae, brazier ----
     {
       const pot = lathe([[0, 0], [0.3, 0], [0.34, 0.04], [0.42, 0.18], [0.5, 0.42], [0.5, 0.6], [0.44, 0.72], [0.46, 0.76], [0.52, 0.8], [0.52, 0.86], [0.42, 0.86], [0.4, 0.78], [0, 0.76]], 32);
-      const leaf = M("oliveLeaf", { map: oliveLeafTex(), emissive: "#2c3420" }), soil = M("soil", { color: "#6a4a34" });
+      const leaf = M("oliveLeaf", { map: oliveLeafTex(), emissive: "#3f5a22" }) /* QA1: backlit crowns read olive-green, not grey */, soil = M("soil", { color: "#6a4a34" });
       const olive = (x: number, z: number, s: number, h: number, seed: number) => {
         b.add(pot, potM, M4(x, 0, z, seed, 0, 0, [s, s, s]));
         b.add(new THREE.CylinderGeometry(0.41 * s, 0.41 * s, 0.02, 20), soil, M4(x, 0.8 * s, z));

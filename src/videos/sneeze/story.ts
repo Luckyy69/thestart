@@ -38,7 +38,7 @@ export const W = {
   fifty: 44.21, chance: 44.87, best: 46.55, official: 48.73, name: 49.23, autosomal: 50.21, dominant: 50.84,
   compelling: 51.41, helio: 51.95, outburst: 53.07, short: 54.79, achoo2: 55.93,
 };
-export const FLASHES: number[] = [];
+export const FLASHES: number[] = [1155]; // the white punch on the hard cut x-ray -> PEAK (shot 5 a)
 
 export type Look = "dawn" | "greece" | "england" | "xray" | "flash" | "stage";
 export type Place = "street" | "greece" | "england" | "stage";
@@ -88,7 +88,7 @@ export const nervesAt = (id: number, t: number) => (id === 4 ? {
 export const bannerAt = (id: number, t: number) => {
   if (id !== 7) return { reveal: 0, words: 0, initials: 0, achoo: 0 };
   const cues = [W.autosomal, W.dominant, W.compelling, W.helio, W.outburst];
-  let words = 0; for (const c of cues) words += smooth((t - (c - 0.1)) / 0.25);
+  let words = 0; for (const c of cues) words += smooth((t - (c - 0.17)) / 0.2); // (qa3) ~85 % lit ON the word
   return { reveal: smooth((t - (W.official - 0.3)) / 0.6), words, initials: smooth((t - (W.short - 0.3)) / 0.6), achoo: smooth((t - (W.achoo2 - 0.15)) / 0.25) };
 };
 
@@ -203,7 +203,7 @@ const E_SUNP: V3 = En(-0.6, 3.3, 6.2);                              // the sun d
 const E_MED = fr(En, 0, 0, 0.62, 2.45, 34, -6, 0.05);               // "closed" (494): eyes shut, facing the sun
 const E_BOOK = fr(En, -0.08, 0, 0.92, 2.45, 31, 11, 0.08);           // "there" (545) + "wasn't" (579): HEAT ✓ SNEEZE ✗
 const E_FACE = fr(En, 0, 0, 1.15, 2.47, 31, 0, 0.03);               // "nose" (632) + "eyes" (664): the glare
-const BACON_EYE: V3 = En(-0.09, 1.52, 0.03);                         // his screen-left eye (measured on the 664 still)
+const BACON_EYE: V3 = En(-0.09, 1.50, 0.03);  /* QA1: 1.52 -> 1.50, the squinting eye sits dead centre on the push */                       // his screen-left eye (measured on the 664 still)
 // ---- X-RAY (shot 4): the hologram plane is head + HOLO_D (0.2) toward the camera; nerves.ts NERVE_LAYOUT ----
 const hd = (x: number, y: number, z: number): V3 => St(x, HY + y, z);
 const XEYE: V3 = hd(0.2, 0.055, 0.2);                                // the hologram eye (NERVE_LAYOUT.eye)
@@ -212,16 +212,16 @@ const X_EYE0: V3 = hd(0, 0.055, 0.8);                                // straight
 const XNOSE: V3 = hd(0.29, -0.035, 0.2);
 const X_FULL: F = [hd(0.03, 0.1, 2.7), hd(0.03, 0.1, 0)];          // nerves.ts recommended framing (fov 32)
 const X_CROSS: F = [hd(0.06, 0.04, 2.25), hd(0.06, 0.04, 0.2)];     // "crossed wires" (755): eye, crossing, nose + label
-const X_FLOOD: F = [hd(0.12, 0.08, 2.1), hd(0.12, 0.08, 0.2)];      // "floods" (941): the eye + the beams from screen right
-const X_SIG: F = [hd(0.07, 0.02, 2.15), hd(0.07, 0.02, 0.2)];       // "signals" (1019): sparks jump to the green nerve
+const X_FLOOD: F = [hd(0.13, 0.08, 2.3), hd(0.13, 0.08, 0.2)];      // "floods" (941): the eye + the beams from screen right
+const X_SIG: F = [hd(0.1, 0.02, 2.35), hd(0.1, 0.02, 0.2)];        // "signals" (1019): sparks jump to the green nerve
      // ---- PEAK (shot 5) + FAMILY (shot 6) ----
 const S_MEME = fr(St, 0, 0, 0.82, 2.3, 34, 0, 0.02);                // THE MEME FACE (1160): still from the cut
 const S_BLOWN: F = [St(0.25, 2.05, 6.4), St(0, 1.25, -0.4)];         // the shockwave throws the camera back ...
-const F_WIDE = fr(St, 0, 0.2, -0.05, 2.35, 46, 0, 0.14, 3.4);       // ... onto the family at the door: "families" (1221)
-const K_L = fr(St, -1.1, 1.35, -0.05, 1.55, 40, -5, 0.12, 1.8);     // "fifty" (1326): kid1 sneezes, kid2 doesn't
-const K_R = fr(St, 1.1, 1.35, -0.05, 1.55, 40, 5, 0.12, 1.8);       // "chance" (1346): kid3 sneezes, kid4 doesn't
+const F_WIDE: F = [St(0.22, 2.25, 9.25), St(0.22, 1.62, 0.4)];      // ... onto the family at the door: "families" (1221); all 7 (BEAN at x 1.72) in frame, feet ~72 % down (less road)
+const K_L = fr(St, -0.84, 1.45, -0.05, 1.55, 40, -5, 0.12, 1.85);   // "fifty" (1326): kid1 sneezes, kid2 doesn't
+const K_R = fr(St, 0.92, 1.45, -0.05, 1.55, 40, 5, 0.12, 1.9);      // "chance" (1346): kid3 sneezes, kid4 doesn't
 // ---- STAGE (shot 7): deck y 0.6; banner centre (0,2.6,-2.2) 6 x 2.7, text x +-1.3; ACHOO at (0,2.65,-1.5) 2.7 wide ----
-const T_ARRIVE: F = [Sg(-0.6, 3.1, 10.6), Sg(0.4, 2.1, -1.5)];        // whip lands: back of the hall, the whole stage
+const T_ARRIVE: F = [Sg(-0.3, 3.1, 10.6), Sg(1.05, 2.1, -1.5)];        // whip lands: back of the hall, the whole stage
 const T_NAME = fr(Sg, 0.75, -1.9, 0.6, 4.05, 40, 3, 0.1, 4.7);      // "official name" (1477): banner unrolls + scientist
 const T_WORDS = fr(Sg, 0, -2.2, 1.45, 3.85, 38, 0, 0.09, 2.85);     // the 5 words (1506-1592): the text block, held
 const T_SHORT = fr(Sg, -0.12, -2.2, 1.5, 3.8, 36, -3, 0.08, 2.7);    // "short" (1644): A C H O O glow gold
@@ -242,7 +242,7 @@ const CAMS_W: Record<number, WP[]> = {
     ...hold(924, 962, X_FLOOD, 32), ...hold(1000, 1036, X_SIG, 32), ...hold(1060, 1160, X_FULL, 32)],
   5: [...hold(1150, 1185, S_MEME, 34), [1216, F_WIDE[0], F_WIDE[1], 46, { ease: "out", via: [S_BLOWN[0]] }]],
   6: [...hold(1150, 1185, S_MEME, 34), [1216, F_WIDE[0], F_WIDE[1], 46, { ease: "out", via: [S_BLOWN[0]] }],
-    ...hold(1216, 1296, F_WIDE, 46), ...hold(1316, 1330, K_L, 40), ...hold(1344, 1400, K_R, 40)],
+    ...hold(1216, 1296, F_WIDE, 46), ...hold(1316, 1333, K_L, 40), ...hold(1343, 1354, K_R, 40), ...hold(1370, 1400, F_WIDE, 46)],
   7: [...hold(1380, 1416, T_ARRIVE, 44), key(1466, T_WORDS, 38, { via: [Sg(-0.25, 3.15, 7.9)] }), ...hold(1466, 1600, T_WORDS, 38),
     ...hold(1630, 1651, T_SHORT, 36), [1673, T_ACHOO[0], T_ACHOO[1], 36], [1800, T_ACHOO[0], T_ACHOO[1], 36]],
 };

@@ -23,7 +23,7 @@ import { Stage, CamInfo, lidAt, hh, q, SU, blob, prepStage } from "../bridge/cas
 import { Pen } from "../bridge/toon";
 import { W, LEAD, FPS, STREET, GREECE, ENGLAND, STAGE, SHOTS, SNEEZES, V3, smooth, clamp01, shotStart, camAt, doorAt, noseAt as noseState, baconAt, bannerAt } from "./story";
 import { NERVES_HOOKS } from "./nerves";
-import { mugAt, scrollAt, quillAt, NOTEBOOK_AT } from "./props";
+import { mugAt, scrollAt, quillAt, NOTEBOOK_AT, bean6At } from "./props";
 import {
   Kit, Pose, Face, FaceS, P2, HandK, drawPerson, jointsOf, lerp2, fxAh, fxAchoo, fxGlare, fxHeat, fxSweat, fxSparkle, fxMark, fxMotion, fxStreak, fxTwitch,
   fxDrop, fxScroll, fxCoffee, fxHalo,
@@ -72,9 +72,10 @@ export const SCIENTIST: V3 = at(STAGE, 2.7, STAGE_Y, -0.8);
 /** shot 6 spots (STREET-relative) + card scale */
 export const FAMILY: Record<string, { at: V3; sc: number }> = {
   // = the sets owner's pavement spots
-  dad: { at: at(STREET, -0.95, 0, 0.3), sc: 1.04 }, mum: { at: at(STREET, 0.95, 0, 0.3), sc: 0.97 },
-  kid1: { at: at(STREET, -1.65, 0, 1.25), sc: 0.66 }, kid2: { at: at(STREET, -0.55, 0, 1.45), sc: 0.6 },
-  kid3: { at: at(STREET, 0.55, 0, 1.45), sc: 0.55 }, kid4: { at: at(STREET, 1.65, 0, 1.25), sc: 0.44 },
+  // (qa3) pulled in so the wide frame holds all 4 kids, and room on screen right for BEAN (props BEAN6_SPOT (1.72, 0, 0.45))
+  dad: { at: at(STREET, -0.95, 0, 0.3), sc: 1.04 }, mum: { at: at(STREET, 0.85, 0, 0.3), sc: 0.97 },
+  kid1: { at: at(STREET, -1.25, 0, 1.35), sc: 0.66 }, kid2: { at: at(STREET, -0.42, 0, 1.55), sc: 0.6 },
+  kid3: { at: at(STREET, 0.42, 0, 1.55), sc: 0.55 }, kid4: { at: at(STREET, 1.2, 0, 1.4), sc: 0.44 },
 };
 const FAM_ORDER = ["dad", "mum", "kid1", "kid2", "kid3", "kid4"];
 /** audience seats (STAGE-relative card origins on the floor, seat top 0.45 m) */
@@ -223,7 +224,9 @@ const bean4 = (t: number, id = 4): Rig => {
   ], 0.3);
   const e = faceAt(t, [[-9, "curious"], [W.crossed - 0.1, "intrigued"], [W.nerveA - 0.2, "listen"], [W.bright - 0.25, "glare"], [W.mixes - 0.1, "confused"], [W.light1 - 0.1, "itchy"]]);
   const f = frameNo(t), tw = e === "itchy" ? q(Math.sin(t * 34) * (0.6 + 0.4 * Math.sin(t * 5)), 4) : 0;
-  return sneezeRig(BEAN(pose, { e, twitch: tw, shake: f % 2 }, [W.crossed - 0.1, W.nerveA - 0.2, W.bright - 0.25, W.mixes - 0.1, W.light1 - 0.1]), t, 0);
+  const r4 = BEAN(pose, { e, twitch: tw, shake: f % 2 }, [W.crossed - 0.1, W.nerveA - 0.2, W.bright - 0.25, W.mixes - 0.1, W.light1 - 0.1]);
+  if (id === 4) r4.kit = { ...KITS.bean, hairStyle: "short" }; // X-ray: the bed-hair locks poked out round the hologram head (read as a beak on its eye)
+  return sneezeRig(r4, t, 0);
 };
 const MEME_T = W.achoo;
 /** shot 5: THE MEME FACE. the colossal ACHOO (hair blown back, cheeks puffed, eyes squeezed, mug flung, gown flapping) */
@@ -241,6 +244,20 @@ const bean5 = (t: number): Rig => {
   const pose = mixPose(meme, calm, rec);
   const face: FaceS = rec < 0.5 ? { e: "meme", k: rec > 0 ? 1 : k, shake: f % 6 } : { e: "phew", blow: q(0.6 * (1 - rec), 10) };
   return BEAN(pose, face, [MEME_T + 1.25]);
+};
+/** shot 6: BEAN (continuity from shot 5: calm pose, "phew") steps aside to screen right for the family, sniffles,
+ *  then a knowing look on "if one parent has it" */
+const bean6 = (t: number): Rig => {
+  const B = bean6At(t), A: V3 = [B.pos[0], floorY(B.pos[2]), B.pos[2]];
+  MUGP = proj(A, mugAt(6, t).handle);
+  const calm = walkMod({ ...beanBase(), flare: 0.25, headTilt: 4 }, (t - shotStart(6)) / 0.28, B.walk);
+  const pose = segPose(t, [
+    [-9, () => calm],
+    [41.3, () => ({ ...beanBase(), hands: [[258, 326], MUGP], hk: ["point", "grip"], ha: [-0.25, Math.PI * 0.5], front: [true, true], headTilt: 2 })], // a sniffle: finger under the nose
+    [42.0, () => ({ ...beanBase(), headTilt: 3 })],
+  ], 0.25);
+  const e = faceAt(t, [[-9, "phew"], [40.62, "sniffy"], [W.parent - 0.1, "knowing"]]);
+  return BEAN(pose, { e, look: e === "knowing" ? [-0.6, 0.2] : undefined }, [40.62, W.parent - 0.1], A);
 };
 /** shot 7: BEAN in the front row, watching (from behind), then sneezes on cue */
 const bean7 = (t: number): Rig => {
@@ -308,7 +325,7 @@ const family6 = (who: string, t: number): Rig => {
     swaps.push(myT + 0.42);
     if (who === "dad" && on(t, W.parent - 0.1) && !on(t, W.parent + 1.3)) e = "proud";
   } else {
-    const q0 = who === "kid2" ? W.fifty + 0.2 : W.chance + 0.35;
+    const q0 = who === "kid2" ? W.fifty + 0.08 : W.chance + 0.2;
     if (on(t, q0)) e = "puzzled";
     swaps.push(q0);
   }
@@ -354,7 +371,7 @@ const rigsAt = (id: number, t: number, cp: Vp): Rig[] => {
   if (id === 3) return [bacon3(t)];
   if (id === 4) return [bean4(t)];
   if (id === 5) return [bean5(t)];
-  if (id === 6) return FAM_ORDER.map((w) => family6(w, t));
+  if (id === 6) return [...FAM_ORDER.map((w) => family6(w, t)), bean6(t)];
   return [sci7(t), bean7(t), ...audience7(t)];
 };
 
@@ -476,19 +493,20 @@ const ahs = (out: Stage, t: number, sn: Sn, head: V3, cam: CamInfo, size: number
 };
 const ACHOO_COLS: Record<string, string> = { bean: "#ff6a3a", aristotle: "#ff8a2a", dad: "#3fa0ff", mum: "#ff5a9a", kid1: "#a86aff", kid3: "#ff4a5a" };
 /** the "ACHOO!" burst + whip motion arcs at a blast */
-const blastFx = (out: Stage, t: number, who: string, sn: Sn, head: V3, mouth: V3, cam: CamInfo, size: number, word = "ACHOO!") => {
+const blastFx = (out: Stage, t: number, who: string, sn: Sn, head: V3, mouth: V3, cam: CamInfo, size: number, word = "ACHOO!", sideO?: number) => {
   if (sn.ph !== 2 && sn.ph !== 3) return;
-  const { R, U, N } = camVecs(cam, head), k = env(t, sn.tb, sn.tb + 0.55, 0.1, 0.3), side = hh(IDX[who] ?? 3, 2) > 0.5 ? 1 : -1;
-  if (k > 0.02) fxCard(out, `achoo|${word}|${who}`, 800, 480, (p) => fxAchoo(p, word, ACHOO_COLS[who] ?? "#ff6a3a", IDX[who] ?? 3), at3(head, R, U, N, side * size * 0.55, size * 0.62 + 0.05 * (t - sn.tb), 0.22), size * 1.1 * k, size * 0.66 * k, { rot: side * -0.12 });
+  const { R, U, N } = camVecs(cam, head), k = env(t, sn.tb, sn.tb + 0.55, 0.1, 0.3), side = sideO ?? (hh(IDX[who] ?? 3, 2) > 0.5 ? 1 : -1);
+  const ko = sideO === undefined ? 1 : 0.8, xo = sideO === undefined ? side * size * 0.55 : sideO * 0.36, yo = sideO === undefined ? 0 : 0.06; // QA1: shot 1 in frame, clear of the watermark
+  if (k > 0.02) fxCard(out, `achoo|${word}|${who}`, 800, 480, (p) => fxAchoo(p, word, ACHOO_COLS[who] ?? "#ff6a3a", IDX[who] ?? 3), at3(head, R, U, N, xo, size * 0.62 + yo + 0.05 * (t - sn.tb), 0.22), size * 1.1 * k * ko, size * 0.66 * k * ko, { rot: side * -0.12 });
   const m = env(t, sn.tb, sn.tb + 0.25, 0.05, 0.2);
   if (m > 0.02) for (const sd of [-1, 1]) fxCard(out, "motion", 256, 256, fxMotion, at3(head, R, U, N, sd * size * 0.62, size * 0.1, 0.1), 0.32 * size * m, 0.32 * size * m, { rot: sd > 0 ? 0.3 : Math.PI - 0.3 });
 };
-const heatFx = (out: Stage, t: number, P: V3, cam: CamInfo, k: number, size: number) => {
+const heatFx = (out: Stage, t: number, P: V3, cam: CamInfo, k: number, size: number, xk = 0.55, y0 = 0.1) => {
   if (k < 0.03) return;
   const { R, U, N } = camVecs(cam, P);
   for (let j = 0; j < 2; j++) {
     const ph = (t * 0.9 + j * 0.5) % 1, s = size * k * Math.sin(Math.PI * ph), v = q((t * 3) % (Math.PI * 2), 4);
-    fxCard(out, `heat|${v}`, 192, 256, (p) => fxHeat(p, v), at3(P, R, U, N, (j ? 1 : -1) * size * 0.55, size * 0.1 + ph * size * 0.5, 0.12), s * 0.75, s, {});
+    fxCard(out, `heat|${v}`, 192, 256, (p) => fxHeat(p, v), at3(P, R, U, N, (j ? 1 : -1) * size * xk, size * y0 + ph * size * 0.5, 0.12), s * 0.75, s, {});
   }
 };
 const sweatDrip = (out: Stage, t: number, from: number, P: V3, cam: CamInfo, rate: number, fall: number, size = 0.06) => {
@@ -520,14 +538,14 @@ export const castAt = (id: number, t: number, cam: CamInfo, light: "day" | "gold
     // every sneeze: the "ah... ah..." build + the ACHOO burst (the peak has its own, bigger show below)
     if (!(id === 5 || (id === 4 && r.who === "bean" && sn.size >= 1))) {
       ahs(out, t, sn, head, cam, 0.34 * sc * (id === 7 ? 1.3 : 1));
-      blastFx(out, t, r.who, sn, head, mouth, cam, (0.5 + 0.35 * sn.size) * sc * (id === 7 ? 1.5 : 1));
+      blastFx(out, t, r.who, sn, head, mouth, cam, (0.5 + 0.35 * sn.size) * sc * (id === 7 ? 1.5 : 1), "ACHOO!", id === 1 || id === 2 ? 1 : id === 7 ? 0 : id === 6 && r.who === "kid1" ? -1 : undefined); // (qa3) shot 7: the burst right above BEAN's head; kid1's clear of Dad's face
     }
     if (id === 1) {
       glare(out, t, 0.62, W.sneeze0 - 0.65, eyes, cam, 0.12);
       sparkles(out, t, W.them - 0.1, SHOTS[0].b / FPS + 0.5, w3(J.hands[1], 0.1), cam, 0.06, 3, 11, 0.06);
     } else if (id === 2) {
       const ns = noseState(2, t);
-      heatFx(out, t, nose, cam, ns.heat * (sn.ph === 0 ? 1 : 0.4), 0.1);
+      heatFx(out, t, nose, cam, ns.heat * (sn.ph === 0 ? 1 : 0.4), 0.08, 1.05, -0.6); // QA1: on the cheeks, off the eyes
       if (ns.sweat > 0.05 && sn.ph < 2) sweatDrip(out, t, W.sweats - 0.15, add(nose, [0, -0.03, 0]), cam, 1.3, 0.22, 0.05);
       if (r.face.e === "uhoh") mark(out, t, W.sweats, W.sneeze1 - 0.65, top, "!", 0.16);
     } else if (id === 3) {
@@ -541,7 +559,7 @@ export const castAt = (id: number, t: number, cam: CamInfo, light: "day" | "gold
       glare(out, t, W.bright - 0.2, W.mixes - 0.35, eyes, cam, 0.12);
       mark(out, t, W.signals, W.light1 - 0.3, top, "?", 0.18);
       twitchFx(out, t, nose, cam, r.face.e === "itchy" ? 1 : 0);
-      ahs(out, t, sn, head, cam, 0.4, true);
+      // (no "ah... ah..." cards here: the x-ray close-up cut them off at both frame edges over the bubble + tags; they land on the 4|5 flash cut)
     } else if (id === 5) {
       ahs(out, t, sn, head, cam, 0.4, true);
       const m = env(t, MEME_T - LEAD, MEME_T + 1.0, 0.08, 0.35), { R, U, N } = camVecs(cam, head), f = frameNo(t);
@@ -562,7 +580,7 @@ export const castAt = (id: number, t: number, cam: CamInfo, light: "day" | "gold
       sparkBurst(out, t, MEME_T - LEAD, head, cam, 0.36, 0.85, 0.14);
     } else if (id === 6) {
       if (sn.ph === 0 && (r.face.e === "squint")) glare(out, t, -9, 99, eyes, cam, 0.11 * sc * (r.kit.headK ?? 1));
-      if (r.face.e === "puzzled") mark(out, t, r.swaps[0], 99, top, "?", 0.18 * sc * 1.4);
+      if (r.face.e === "puzzled") mark(out, t, r.swaps[0], 99, top, "?", 0.3 * Math.max(sc, 0.62)); // (qa3) big enough to read in the wide
       if (r.face.e === "beam" || r.face.e === "proud") sparkles(out, t, (r.swaps[0] ?? 0), 99, head, cam, 0.22 * sc, 3, IDX[r.who] ?? 1, 0.07);
     } else if (id === 7) {
       if (r.who === "sci") { mark(out, t, W.achoo2 + 0.12, W.achoo2 + 1.1, top, "!", 0.2); sparkles(out, t, W.achoo2 + 1.25, 99, head, cam, 0.3, 4, 41, 0.08); }

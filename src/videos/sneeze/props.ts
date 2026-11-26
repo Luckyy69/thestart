@@ -86,6 +86,7 @@ const blastFrame = (i: number): { origin: V3; dir: V3; peak: boolean; id: number
   const right = new THREE.Vector3().crossVectors(toCam, new THREE.Vector3(0, 1, 0)).normalize().multiplyScalar(-1); // screen right
   const d = peak ? toCam.clone().multiplyScalar(0.97).addScaledVector(right, 0.12).add(new THREE.Vector3(0, 0.08, 0))
     : toCam.clone().multiplyScalar(0.55).addScaledVector(right, 0.75 * (SIDE[who] ?? 1)).add(new THREE.Vector3(0, 0.22, 0));
+  if (id === 7 && who === "bean") d.set(0.05, 0.42, -1); // (qa3) seen from behind: he sneezes AT the stage, up into the banner (not back at the lens / his neighbour)
   d.normalize();
   return { origin: o, dir: [d.x, d.y, d.z], peak, id };
 };
@@ -104,12 +105,18 @@ export const blastsAt = (id: number, t: number): BlastInfo[] => {
 export const blastPower = (id: number, t: number) => blastsAt(id, t).reduce((m, b) => Math.max(m, b.size * smooth(b.age / 0.05) * Math.exp(-b.age * 3)), 0);
 
 /** BEAN's base (feet) in the street: steps out of the door (doorAt.step) in shot 1, at STREET+(0,0,0) in 4/5 */
-const beanBase = (id: number, t: number): V3 => (id === 1 ? add(STREET, 0, 0, -1.2 * (1 - doorAt(id, t).step)) : STREET);
+const beanBase = (id: number, t: number): V3 => { if (id === 6) return bean6At(t).pos; if (id !== 1) return STREET; const z = STREET[2] - 1.2 * (1 - doorAt(id, t).step); return [STREET[0], CAST.floorY(z), z]; }; // QA1 floor-following + QA3 shot 6
+/** shot 6: BEAN (left at STREET by shot 5) steps aside to screen right, clearing the door for the family */
+export const BEAN6_SPOT: V3 = add(STREET, 1.72, 0, 0.45);
+export const bean6At = (t: number): { pos: V3; walk: number } => {
+  const s = smooth((t - (SHOTS[5].a / FPS + 0.04)) / 0.72);
+  return { pos: [STREET[0] + (BEAN6_SPOT[0] - STREET[0]) * s, STREET[1], STREET[2] + (BEAN6_SPOT[2] - STREET[2]) * s], walk: s > 0 && s < 1 ? Math.min(1, s * 6, (1 - s) * 6) : 0 };
+};
 /** BEAN's mug: shown in shots 1, 4, 5; pos = mug base centre (world) = BEAN base + MUG_HAND; BEAN's hand (screen
  *  right) holds its handle at `handle`. Jolts on every BEAN sneeze (jolt 0..1). */
 export const MUG_HAND: V3 = [0.3, 1.0, 0.16];
 export const mugAt = (id: number, t: number): { show: boolean; pos: V3; handle: V3; jolt: number } => {
-  const show = id === 1 || id === 4 || id === 5;
+  const show = id === 1 || id === 4 || id === 5 || id === 6;
   let jy = 0, jx = 0, jolt = 0;
   for (const [t0, who, size] of SNEEZES) {
     if (who !== "bean") continue;
@@ -1013,7 +1020,7 @@ export class Props {
         S.idx = b.i; const r = rng(300 + b.i * 17);
         for (let k = 0; k < N_STREAK; k++) {
           const th = b.peak ? 0.75 + 0.6 * r() : 0.05 + 0.42 * r(), ph = r() * TAU, d = this.coneDir(th, ph, bs);
-          const rad = this.coneDir(Math.PI / 2, ph, bs).multiplyScalar(b.peak ? 0.2 + 0.08 * r() : 0); S.iR.setXYZ(k, rad.x, rad.y, rad.z);
+          const rad = this.coneDir(Math.PI / 2, ph, bs).multiplyScalar(b.peak ? 0.34 + 0.08 * r() : 0); S.iR.setXYZ(k, rad.x, rad.y, rad.z);
           const curl = bs.u.clone().multiplyScalar((r() - 0.3) * 0.25).addScaledVector(bs.r, (r() - 0.5) * 0.2).add(new THREE.Vector3(0, -0.05, 0));
           S.iD.setXYZ(k, d.x, d.y, d.z); S.iC.setXYZ(k, curl.x, curl.y, curl.z);
           S.iP.setXYZW(k, r() * 0.12, 0.8 + 0.5 * r(), 0.6 + 0.8 * r(), 0.55 + 0.45 * r());
@@ -1027,7 +1034,7 @@ export class Props {
       S.ring.forEach((m, k) => {
         const a = b.age - k * 0.09; if (a < 0 || a > 0.7) return;
         const e = easeOut3(a / 0.55), travel = b.peak ? Math.max(0, Math.min(0.32, dCam - 0.9)) * e : (0.15 + 0.5 * sz) * e;
-        const rad = b.peak ? 0.12 + (0.95 - 0.25 * k) * e : (0.05 + (0.32 + 0.4 * sz) * e) * (1 - 0.25 * k);
+        const rad = b.peak ? 0.3 + (0.8 - 0.2 * k) * e : (0.05 + (0.32 + 0.4 * sz) * e) * (1 - 0.25 * k);
         m.visible = true; m.position.copy(O).addScaledVector(bs.f, travel); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), bs.f);
         m.scale.setScalar(rad);
         const mt = S.ringMat[k]; mt.uniforms.uA.value = (b.peak ? 0.9 : 0.8) * smooth(a / 0.04) * (1 - smooth((a - 0.2) / 0.45)); mt.uniforms.uW.value = b.peak ? 0.16 : 0.22; mt.uniforms.uT.value = t;
@@ -1037,7 +1044,8 @@ export class Props {
       for (let k = 0; k < nP; k++) {
         const a = b.age - 0.01 * k; if (a < 0 || a > 0.9) continue;
         const ph = (k / nP) * TAU + b.i, e = easeOut3(a / 0.6);
-        const ringR = b.peak ? 0.16 + 0.42 * e : (0.03 + 0.14 * e) * sz;
+        if (b.peak && Math.sin(ph) > 0.35) continue; // peak: no puffs over the ACHOO! shout above his head
+        const ringR = b.peak ? 0.36 + 0.4 * e : (0.03 + 0.14 * e) * sz;
         const p = O.clone().addScaledVector(bs.f, b.peak ? 0.05 + 0.22 * e : (0.06 + 0.45 * e) * (0.6 + sz)).addScaledVector(bs.r, Math.cos(ph) * ringR).addScaledVector(bs.u, Math.sin(ph) * ringR);
         const size = b.peak ? 0.1 + 0.22 * e : (0.05 + 0.16 * e) * (0.5 + sz);
         this.sprN.push(p, size * smooth(a / 0.04), ph, 0.95 * (1 - smooth((a - 0.35) / 0.45)), A_PUFF, C_WHITE);

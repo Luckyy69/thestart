@@ -114,8 +114,8 @@ export const SneezeShort: React.FC = () => {
   const f = useStoryFrame();
   const kit = useKit();
   if (!kit) return null;
-  // lightning: a short white flash on each strike the audience sees from outside
-  const flash = Math.max(0, ...FLASHES.map((a) => (f >= a && f < a + 4 ? [0.45, 0.15, 0.3, 0.08][Math.floor(f - a)] : 0)));
+  // the PEAK punch: one white flash on the x-ray -> daylight cut, decaying (no strobe) before the meme face lands
+  const flash = Math.max(0, ...FLASHES.map((a) => (f >= a && f < a + 4 ? [0.6, 0.32, 0.13, 0.04][Math.floor(f - a)] : 0)));
   return (
     <AbsoluteFill style={{ background: "#cfe3f2" }}>
       {layersAt(f).map((l, i) => <ShotView key={i ? "over" : "base"} id={l.id} kit={kit} alpha={l.alpha} />)}

@@ -71,6 +71,7 @@ const B = NERVE_LAYOUT.box;
 const S = 1900; // px per metre
 const CW = Math.round((B.x1 - B.x0) * S), CH = Math.round((B.y1 - B.y0) * S); // 1482 x 1995
 const GS = 0.25; // glow canvas scale
+const HI_BOX = { c: [0.2, 0.055] as P2, w: 0.15, h: 0.3 }, HI_W = 1024, HI_H = 2048; // qa2: sharp eye patch (6830 px/m)
 const P = (x: number, y: number): P2 => [(x - B.x0) * S, (B.y1 - y) * S];
 const crPts = (pts: P2[], n: number, closed: boolean): P2[] => {
   const out: P2[] = [], N = pts.length, seg = closed ? N : N - 1;
@@ -217,8 +218,20 @@ export class Nerves {
   private geo = buildGeo();
   private last = "";
   private dbg: THREE.Group | null = null;
+  // HI-RES EYE PATCH (qa2): the 3->4 eye dissolve looks at the eye from 0.6 m at fov 15 (~0.16 m of hologram over the
+  // full 2560 px frame = 8x magnified 1900 px/m canvas: soft + stair-stepped at 2K). The same drawing, redrawn ~3.6x
+  // sharper on a patch round the eye, replaces the main plane while the patch fills the frame; it fades out as the
+  // camera pulls back and the patch edge nears the frame edge.
+  private hi = new Plane(HI_W, HI_H);
+  private hiMat = new THREE.MeshBasicMaterial({ map: this.hi.tex, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide, toneMapped: false });
+  private hiMesh: THREE.Mesh;
+  private hiK = 0;
+  private sink = document.createElement("canvas").getContext("2d")!;
 
   constructor() {
+    this.hiMesh = new THREE.Mesh(new THREE.PlaneGeometry(HI_BOX.w, HI_BOX.h), this.hiMat);
+    this.hiMesh.position.set(HI_BOX.c[0], HI_BOX.c[1], 0.0015); this.hiMesh.renderOrder = 30.5;
+    this.hiMesh.layers.set(NOINK); this.hiMesh.frustumCulled = false; this.holo.add(this.hiMesh);
     const geo = new THREE.PlaneGeometry(CW / S, CH / S);
     const mk = (m: THREE.MeshBasicMaterial, z: number, ro: number) => {
       const me = new THREE.Mesh(geo, m); me.position.set((B.x0 + B.x1) / 2, (B.y0 + B.y1) / 2, z); me.renderOrder = ro;
@@ -242,8 +255,18 @@ export class Nerves {
     if (!this.holo.visible) return;
     const F = frameAt(id, t);
     this.holo.position.set(...toW(F, 0, 0)); this.holo.rotation.set(0, F.yaw, 0);
-    this.holo.scale.setScalar(0.9 + 0.1 * glide(show));
+    const hs = 0.9 + 0.1 * glide(show);
+    this.holo.scale.setScalar(hs);
+    { // hi-res eye patch coverage: the camera's visible window on the hologram plane (head-local m) vs the patch box
+      const c = camAt(id, Math.round(t * FPS)), d = ((c.pos[0] - F.o[0]) * F.N[0] + (c.pos[2] - F.o[2]) * F.N[2] - HOLO_D) / hs;
+      const lx = ((c.look[0] - F.o[0]) * F.R[0] + (c.look[2] - F.o[2]) * F.R[2]) / hs, ly = (c.look[1] - F.o[1]) / hs;
+      const vh = d * Math.tan((c.fov * Math.PI) / 360), vw = vh * (9 / 16);
+      const m = Math.min(HI_BOX.c[0] + HI_BOX.w / 2 - (lx + vw), lx - vw - (HI_BOX.c[0] - HI_BOX.w / 2), HI_BOX.c[1] + HI_BOX.h / 2 - (ly + vh), ly - vh - (HI_BOX.c[1] - HI_BOX.h / 2));
+      this.hiK = id === 4 && d > 0 ? smooth(m / 0.012) : 0;
+    }
     for (const m of this.mats) m.opacity = show;
+    this.mats[0].opacity = this.hiK >= 0.999 ? 0 : show; // the patch fills the frame: no double alpha under it
+    this.hiMesh.visible = this.hiK > 0.001; this.hiMat.opacity = show * this.hiK;
     const key = `${id}_${t.toFixed(4)}`;
     if (key === this.last) return;
     this.last = key;
@@ -278,6 +301,18 @@ export class Nerves {
       q.setTransform(GS, 0, 0, GS, 0, 0); q.save(); q.clip(this.geo.head); q.fillStyle = `rgba(120,230,255,${0.8 * a})`; q.fillRect(x0, wipe - 10, x1 - x0, 20); q.restore();
     }
     this.main.tex.needsUpdate = true; this.glow.tex.needsUpdate = true;
+    if (this.hiK > 0.001) { // the same layers, re-rendered sharp on the eye patch (glow goes to a throwaway sink)
+      const h = this.hi.g, k = HI_W / (HI_BOX.w * S), [x0, y0] = P(HI_BOX.c[0] - HI_BOX.w / 2, HI_BOX.c[1] + HI_BOX.h / 2), sk = this.sink;
+      h.setTransform(1, 0, 0, 1, 0, 0); h.clearRect(0, 0, HI_W, HI_H); h.save(); h.setTransform(k, 0, 0, k, -k * x0, -k * y0);
+      h.lineCap = "round"; h.lineJoin = "round"; h.globalAlpha = 1;
+      if (rev < 0.999) { h.beginPath(); h.rect(0, wipe, CW, CH); h.clip(); }
+      sk.save();
+      this.drawHead(h, sk, t, X); this.drawBeams(h, sk, t, X); this.drawNerves(h, sk, t, X); this.drawBrain(h, sk, t, X);
+      this.drawEye(h, sk, t, X); this.drawNose(h, sk, t, X); this.drawSparks(h, sk, t, X); this.drawTags(h, t, X);
+      this.drawLabel(h, sk, t, X); this.drawBubble(h, t, X);
+      sk.restore(); h.restore();
+      this.hi.tex.needsUpdate = true;
+    }
   }
 
   private drawHead(g: CanvasRenderingContext2D, q: CanvasRenderingContext2D, t: number, X: St) {
@@ -422,7 +457,7 @@ export class Nerves {
     g.strokeStyle = INK; g.lineWidth = 14; g.stroke(G.brain);
     g.strokeStyle = "#f3e2ff"; g.lineWidth = 5; g.stroke(G.brain);
     q.strokeStyle = `rgba(200,140,255,${0.3 + 0.4 * flick})`; q.lineWidth = 40; q.stroke(G.brain);
-    if (flick > 0.01) { q.fillStyle = `rgba(255,220,140,${0.25 * flick})`; q.fill(G.brain); }
+    if (flick > 0.01) { q.fillStyle = `rgba(255,220,140,${0.1 * flick})`; q.fill(G.brain); } // (0.25 washed out the brain's face)
     this.brainFace(g, t, X);
     if (X.thought > 0.01) { // confused "?" marks
       for (let k = 0; k < 2; k++) {
@@ -529,18 +564,18 @@ export class Nerves {
       const a = j * smooth((on - 0.15) / 0.3);
       const gy = x < 0 ? LANE_B : LANE_T, ny = x < 0 ? LANE_T : LANE_B, dir = x < 0 ? -1 : 1; // gold lane -> green lane
       // a bolt that leaps OUT of the gold cable, arcs over the gap and lands on the green one
-      const p0 = P(x, gy), p1 = P(x + 0.035, ny), bulge = -dir * 0.035 * S, r = rng(fr * 13 + k * 101), pts: P2[] = [p0];
+      const p0 = P(x, gy), p1 = P(x + 0.035, ny), bulge = -dir * 0.048 * S, r = rng(fr * 13 + k * 101), pts: P2[] = [p0];
       for (let s = 1; s < 8; s++) {
         const u = s / 8, arc = Math.sin(Math.PI * u) * bulge;
         pts.push([lerp(p0[0], p1[0], u) + (r() - 0.5) * 0.012 * S, lerp(p0[1], p1[1], u) + arc + (r() - 0.5) * 0.012 * S]);
       }
       pts.push(p1);
       g.save(); g.globalAlpha = a;
-      g.strokeStyle = INK; g.lineWidth = 15; strokePts(g, pts);
-      g.strokeStyle = "#fff59a"; g.lineWidth = 10; strokePts(g, pts);
-      g.strokeStyle = "#ffffff"; g.lineWidth = 4; strokePts(g, pts);
+      g.strokeStyle = INK; g.lineWidth = 21; strokePts(g, pts);
+      g.strokeStyle = "#fff59a"; g.lineWidth = 13; strokePts(g, pts);
+      g.strokeStyle = "#ffffff"; g.lineWidth = 5; strokePts(g, pts);
       g.restore();
-      q.save(); q.globalAlpha = 0.7 * a; q.strokeStyle = "rgba(230,255,170,1)"; q.lineWidth = 22; strokePts(q, pts); q.restore();
+      q.save(); q.globalAlpha = 0.4 * a; q.strokeStyle = "rgba(230,255,170,1)"; q.lineWidth = 16; strokePts(q, pts); q.restore();
       star(g, p0[0], p0[1], 22 * a, a, "#fff4b0", fr * 0.5 + k);
       star(g, p1[0], p1[1], 30 * a, a, "#d8ffe4", fr * 0.7 + k);
     });
@@ -551,7 +586,7 @@ export class Nerves {
         const an = r() * TAU, d = 0.05 * S * (0.6 + 1.4 * glide(s0 / 0.8)) * (0.7 + 0.5 * r()), sz = r();
         star(g, XG[0] + Math.cos(an) * d, XG[1] + Math.sin(an) * d * 0.7, (16 + 18 * sz) * a, a, k % 2 ? "#fff4b0" : "#c8ffd8", an);
       }
-      blob(q, XG[0], XG[1], 0.12 * S * a, `rgba(255,255,220,${a})`, "rgba(150,255,150,0)");
+      blob(q, XG[0], XG[1], 0.075 * S * a, `rgba(255,255,220,${0.6 * a})`, "rgba(150,255,150,0)"); // smaller: kept off the label + bolts
     }
   }
 
@@ -595,9 +630,10 @@ export class Nerves {
     lg.addColorStop(0, "#ffc928"); lg.addColorStop(0.48, "#ffd84a"); lg.addColorStop(0.52, "#4cf595"); lg.addColorStop(1, "#2fe07c");
     g.fillStyle = lg; rrect(g, -w / 2, -h / 2, w, h, h / 2); g.fill();
     g.fillStyle = "rgba(255,255,255,0.35)"; rrect(g, -w / 2 + 16, -h / 2 + 7, w - 32, h * 0.28, h * 0.14); g.fill();
-    text(g, "CROSSED WIRES!", 0, 3, 0.037 * S, "#ffffff", INK, 0.24, 900);
+    text(g, "CROSSED WIRES!", 0, 3, 0.037 * S, "#ffffff", INK, 0.3, 900);
     g.restore();
-    q.save(); q.globalAlpha = 0.3 * k; q.fillStyle = "rgba(255,230,140,1)"; rrect(q, x - w / 2, y - h / 2, w, h, h / 2); q.fill(); q.restore();
+    // glow only round the pill's rim: an additive wash over the text greyed its ink outline (unreadable on a phone)
+    q.save(); q.globalAlpha = 0.35 * k; q.strokeStyle = "rgba(255,230,140,1)"; q.lineWidth = 26; rrect(q, x - w / 2 - 14, y - h / 2 - 14, w + 28, h + 28, h / 2 + 14); q.stroke(); q.restore();
   }
 
   private drawBubble(g: CanvasRenderingContext2D, t: number, X: St) {

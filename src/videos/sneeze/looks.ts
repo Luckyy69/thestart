@@ -33,7 +33,7 @@ const out = (L: LightPreset, sat: number, sky = dawnSky, far = 900): LookDef => 
 export const LOOKS: Record<Look, LookDef> = {
   dawn: out(dawn, 1.12),
   greece: { ...out(greece, 1.14, { c: ["#f6c393", "#ffbb80", "#f2a486", "#b49ab8", "#4a7cc0"], e: [0, 3, 9, 20, 46] }), fog: [greece.fog, 90, 1500] },
-  england: { ...out(england, 1.04, { c: ["#efe5cc", "#efe6d4", "#d8dfe6", "#adc2da", "#7f9ec8"], e: [0, 4, 11, 24, 50] }), fog: [england.fog, 8, 230] },
+  england: { ...out(england, 1.04, { c: ["#efe5cc", "#efe6d4", "#d8dfe6", "#adc2da", "#7f9ec8"], e: [0, 4, 11, 24, 50] }), fog: [england.fog, 10, 520] }, // QA1: far 230 -> 520: the parkland trees (160-250 m) keep their fill under the ink
   xray: { ...out(xray, 1.1), sunDisc: false },
   flash: out(flash, 1.1),
   stage: { ...out(stage, 1.12), sunDisc: false, fog: [stage.fog, 60, 3000] },
