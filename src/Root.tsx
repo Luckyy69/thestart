@@ -11,6 +11,7 @@ import { BurpShort, BURP_FRAMES } from "./videos/burp/Burp";
 import { OuchShort, OUCH_FRAMES } from "./videos/ouch/Ouch";
 import { TickleShort, TICKLE_FRAMES } from "./videos/tickle/Tickle";
 import { SneezeShort, SNEEZE_FRAMES } from "./videos/sneeze/Sneeze";
+import { HiccupShort, HICCUP_FRAMES } from "./videos/hiccup/Hiccup";
 import { Box } from "./test/Box";
 import { BridgeShort, BRIDGE_FRAMES } from "./videos/bridge/Bridge";
 
@@ -73,6 +74,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="OuchShort" component={OuchShort} durationInFrames={OUCH_FRAMES} fps={30} width={1080} height={1920} />
       <Composition id="TickleShort" component={TickleShort} durationInFrames={TICKLE_FRAMES} fps={30} width={1080} height={1920} />
       <Composition id="SneezeShort" component={SneezeShort} durationInFrames={SNEEZE_FRAMES} fps={30} width={1080} height={1920} />
+      <Composition id="HiccupShort" component={HiccupShort} durationInFrames={HICCUP_FRAMES} fps={30} width={1080} height={1920} />
     </>
   );
 };
