@@ -32,3 +32,11 @@ CLEAN: one clean frame of the main character (no effect cards, captions or water
 a single 2-3 line headline at the top (white Inter Display 900, dark outline, ONE key word in yellow #ffcf3a), a dark
 gradient behind the headline, small "BEAN STORIES" bottom-left. No subtitle, no bottom text, no extra stickers.
 Template: projects/branding/thumb_sneeze2.html (render with shot_thumb.js).
+
+## Rendering on the owner's Mac (from now on)
+The owner's Mac (Apple M2, 8 cores) is attached to the session as host "mac": project clone at
+/Users/marcuslagier/claude/render (npm ci done). GPU render (--gl=angle) is ~6x faster than the cloud container
+(~1.5 s/frame at 2K vs ~9 s). Script: ~/claude/render/mac_render.sh <Comp> <totalFrames> <audio|-> <out.mp4>
+(chunked 300 frames, resumable, muxes audio). Workflow per video: commit code + the audio mix as
+projects/<name>-short/audio/mix.m4a (git add -f) here, push, then on mac fetch, show the owner the commit id + diff,
+and only after they say yes check out that commit id; run the script detached (nohup) and check its progress file.
