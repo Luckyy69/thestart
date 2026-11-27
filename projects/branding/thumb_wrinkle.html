@@ -1,0 +1,15 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;background:#000}
+#t{position:relative;width:1080px;height:1920px;overflow:hidden;font-family:"Inter Display","Inter";font-weight:900}
+#bg{position:absolute;top:40px;width:1160px;height:2062px;left:-40px;object-fit:cover;filter:saturate(1.15) contrast(1.05)}
+.top{position:absolute;inset:0;background:linear-gradient(#0d0a12 0%,#0d0a12e0 14%,#0d0a1200 32%,#0d0a1200 80%,#0d0a12c0 100%)}
+.h{position:absolute;left:0;right:0;top:90px;text-align:center;font-size:150px;line-height:.95;letter-spacing:-4px;color:#fff}
+.h span{-webkit-text-stroke:24px #1d1424;paint-order:stroke fill}
+.h b{color:#ffcf3a}
+.brand{position:absolute;left:40px;bottom:36px;color:#fff;font-size:40px;-webkit-text-stroke:10px #1d1424;paint-order:stroke fill}
+</style></head><body>
+<div id="t"><img id="bg" src="wrinkleT_30.jpg"><div class="top"></div>
+<div class="h"><span>YOUR FINGERS<br>HAVE <b>RAIN</b><br>TIRES</span></div>
+<div class="brand">BEAN STORIES</div></div>
+<script>document.querySelector('#bg').decode().then(()=>document.fonts.ready).then(()=>document.title='done')</script>
+</body></html>
