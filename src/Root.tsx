@@ -17,6 +17,7 @@ import { JerkShort, JERK_FRAMES } from "./videos/jerk/Jerk";
 import { WrinkleShort, WRINKLE_FRAMES } from "./videos/wrinkle/Wrinkle";
 import { GooseShort, GOOSE_FRAMES } from "./videos/goose/Goose";
 import { FreezeShort, FREEZE_FRAMES } from "./videos/freeze/Freeze";
+import { GrowlShort, GROWL_FRAMES } from "./videos/growl/Growl";
 import { Box } from "./test/Box";
 import { BridgeShort, BRIDGE_FRAMES } from "./videos/bridge/Bridge";
 
@@ -85,6 +86,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="WrinkleShort" component={WrinkleShort} durationInFrames={WRINKLE_FRAMES} fps={30} width={1080} height={1920} />
       <Composition id="GooseShort" component={GooseShort} durationInFrames={GOOSE_FRAMES} fps={30} width={1080} height={1920} />
       <Composition id="FreezeShort" component={FreezeShort} durationInFrames={FREEZE_FRAMES} fps={30} width={1080} height={1920} />
+      <Composition id="GrowlShort" component={GrowlShort} durationInFrames={GROWL_FRAMES} fps={30} width={1080} height={1920} />
     </>
   );
 };
